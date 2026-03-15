@@ -9,6 +9,7 @@ interface IssueCardProps {
   onClick: () => void;
   onConfirm: () => void;
   onDismiss: () => void;
+  compact?: boolean;
 }
 
 const SEVERITY_STYLES = {
@@ -41,7 +42,7 @@ const AGENT_LABELS = {
   temporal_consistency: 'Temporal Consistency',
 };
 
-export function IssueCard({ flag, isSelected, onClick, onConfirm, onDismiss }: IssueCardProps) {
+export function IssueCard({ flag, isSelected, onClick, onConfirm, onDismiss, compact }: IssueCardProps) {
   const style = SEVERITY_STYLES[flag.severity];
 
   return (
@@ -68,37 +69,39 @@ export function IssueCard({ flag, isSelected, onClick, onConfirm, onDismiss }: I
             </span>
           </div>
           <p className="text-sm text-foreground leading-snug">{flag.description}</p>
-          <div className="mt-2 flex items-center gap-2">
-            <span className="text-[10px] font-mono text-muted-foreground">
-              Confidence: {Math.round(flag.confidence * 100)}%
-            </span>
-            {!flag.confirmed && !flag.dismissed && (
-              <div className="flex gap-1 ml-auto">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-6 px-2 text-xs text-success hover:text-success hover:bg-success/10"
-                  onClick={(e) => { e.stopPropagation(); onConfirm(); }}
-                >
-                  <Check className="h-3 w-3 mr-1" /> Confirm
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-6 px-2 text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                  onClick={(e) => { e.stopPropagation(); onDismiss(); }}
-                >
-                  <X className="h-3 w-3 mr-1" /> Dismiss
-                </Button>
-              </div>
-            )}
-            {flag.confirmed && (
-              <span className="ml-auto text-[10px] text-success font-medium">Confirmed</span>
-            )}
-            {flag.dismissed && (
-              <span className="ml-auto text-[10px] text-muted-foreground font-medium">Dismissed</span>
-            )}
-          </div>
+          {!compact && (
+            <div className="mt-2 flex items-center gap-2">
+              <span className="text-[10px] font-mono text-muted-foreground">
+                Confidence: {Math.round(flag.confidence * 100)}%
+              </span>
+              {!flag.confirmed && !flag.dismissed && (
+                <div className="flex gap-1 ml-auto">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 px-2 text-xs text-success hover:text-success hover:bg-success/10"
+                    onClick={(e) => { e.stopPropagation(); onConfirm(); }}
+                  >
+                    <Check className="h-3.5 w-3.5 mr-1" /> Confirm
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 px-2 text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                    onClick={(e) => { e.stopPropagation(); onDismiss(); }}
+                  >
+                    <X className="h-3.5 w-3.5 mr-1" /> Dismiss
+                  </Button>
+                </div>
+              )}
+              {flag.confirmed && (
+                <span className="ml-auto text-[10px] text-success font-medium">Confirmed</span>
+              )}
+              {flag.dismissed && (
+                <span className="ml-auto text-[10px] text-muted-foreground font-medium">Dismissed</span>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>

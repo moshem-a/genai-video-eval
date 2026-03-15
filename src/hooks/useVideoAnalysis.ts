@@ -1,7 +1,8 @@
 import { useState, useCallback, useRef } from 'react';
-import { AnalysisResult, AgentConfig, AgentResult, Flag, DEFAULT_AGENT_CONFIGS } from '@/lib/types';
+import { AnalysisResult, AgentConfig, AgentResult, Flag } from '@/lib/types';
 import { extractFrames } from '@/lib/video-utils';
 import { runAgent, computeCoherenceScore } from '@/lib/gemini';
+import { getStoredAgentConfigs, saveAgentConfigs } from '@/lib/agent-storage';
 
 interface UseVideoAnalysisReturn {
   isAnalyzing: boolean;
@@ -24,7 +25,12 @@ export function useVideoAnalysis(): UseVideoAnalysisReturn {
   const [agentResults, setAgentResults] = useState<AgentResult[]>([]);
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [agentConfigs, setAgentConfigs] = useState<AgentConfig[]>(DEFAULT_AGENT_CONFIGS);
+  const [agentConfigs, setAgentConfigsState] = useState<AgentConfig[]>(getStoredAgentConfigs());
+
+  const setAgentConfigs = useCallback((next: AgentConfig[]) => {
+    setAgentConfigsState(next);
+    saveAgentConfigs(next);
+  }, []);
 
   const reset = useCallback(() => {
     setIsAnalyzing(false);
@@ -82,7 +88,7 @@ export function useVideoAnalysis(): UseVideoAnalysisReturn {
 
       const agentPromises = enabledAgents.map(async (config, idx) => {
         try {
-          const flags = await runAgent(config.type, frames, config.sensitivity, duration);
+          const flags = await runAgent(config, frames, duration);
           const agentResult: AgentResult = { agent: config.type, flags, status: 'complete' };
           setAgentResults(prev => prev.map(r => r.agent === config.type ? agentResult : r));
           setProgress(30 + ((idx + 1) / enabledAgents.length) * 60);

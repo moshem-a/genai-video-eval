@@ -1,0 +1,179 @@
+import { useState, useEffect } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
+import { VeoModelKey, VEO_MODELS } from '@/lib/veo';
+import { Sparkles, Loader2, Music, Clock, Maximize } from 'lucide-react';
+
+interface PromptEditorDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  initialPrompt: string;
+  initialDuration: number;
+  initialModel?: VeoModelKey;
+  onRegenerate: (options: {
+    prompt: string;
+    model: VeoModelKey;
+    durationSeconds: number;
+    aspectRatio: '16:9' | '9:16' | '1:1';
+    includeAudio: boolean;
+  }) => void;
+  isGenerating: boolean;
+}
+
+export function PromptEditorDialog({
+  open,
+  onOpenChange,
+  initialPrompt,
+  initialDuration,
+  initialModel = 'veo-3.0',
+  onRegenerate,
+  isGenerating
+}: PromptEditorDialogProps) {
+  const [prompt, setPrompt] = useState(initialPrompt);
+  const [model, setModel] = useState<VeoModelKey>(initialModel);
+  const [duration, setDuration] = useState(initialDuration);
+  const [aspectRatio, setAspectRatio] = useState<'16:9' | '9:16' | '1:1'>('16:9');
+  const [includeAudio, setIncludeAudio] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      setPrompt(initialPrompt);
+      setDuration(Math.min(initialDuration, 8));
+    }
+  }, [open, initialPrompt, initialDuration]);
+
+  const handleRegenerate = () => {
+    onRegenerate({
+      prompt,
+      model,
+      durationSeconds: duration,
+      aspectRatio,
+      includeAudio,
+    });
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Sparkles className="h-5 w-5 text-primary" />
+            Customize Regeneration
+          </DialogTitle>
+          <DialogDescription>
+            Review and edit the prompt and parameters before generating the new video.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="grid gap-6 py-4">
+          <div className="space-y-2">
+            <Label htmlFor="prompt">Regeneration Prompt</Label>
+            {!initialPrompt && open ? (
+              <div className="flex flex-col items-center justify-center py-10 border rounded-md bg-muted/10 space-y-3">
+                <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                <p className="text-xs text-muted-foreground animate-pulse">Drafting improved prompt with AI...</p>
+              </div>
+            ) : (
+              <>
+                <Textarea
+                  id="prompt"
+                  value={prompt}
+                  onChange={(e) => setPrompt(e.target.value)}
+                  placeholder="Enter instructions for video regeneration..."
+                  className="min-h-[150px] text-sm resize-none font-sans"
+                />
+                <p className="text-[10px] text-muted-foreground">
+                  Pro-tip: Describe the scene clearly and specify what to avoid.
+                </p>
+              </>
+            )}
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label className="flex items-center gap-1.5">
+                <Maximize className="h-3.5 w-3.5" /> Model
+              </Label>
+              <Select value={model} onValueChange={(v) => setModel(v as VeoModelKey)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="veo-3.0">Veo 3.0 (Balanced)</SelectItem>
+                  <SelectItem value="veo-3.1">Veo 3.1 (Preview)</SelectItem>
+                  <SelectItem value="veo-2.0">Veo 2.0 (Stable)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="flex items-center gap-1.5">
+                <Clock className="h-3.5 w-3.5" /> Duration
+              </Label>
+              <Select value={duration.toString()} onValueChange={(v) => setDuration(parseInt(v))}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="3">3 Seconds</SelectItem>
+                  <SelectItem value="5">5 Seconds</SelectItem>
+                  <SelectItem value="8">8 Seconds</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label className="flex items-center gap-1.5">
+                <Maximize className="h-3.5 w-3.5" /> Aspect Ratio
+              </Label>
+              <Select value={aspectRatio} onValueChange={(v) => setAspectRatio(v as any)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="16:9">Widescreen (16:9)</SelectItem>
+                  <SelectItem value="1:1">Square (1:1)</SelectItem>
+                  <SelectItem value="9:16">Vertical (9:16)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex items-center justify-between p-3 rounded-lg border bg-muted/30">
+              <div className="flex items-center gap-2">
+                <Music className="h-4 w-4 text-primary" />
+                <div className="space-y-0.5">
+                  <Label htmlFor="audio" className="text-sm">Include Audio</Label>
+                  <p className="text-[10px] text-muted-foreground">Add AI-generated soundtrack</p>
+                </div>
+              </div>
+              <Switch
+                id="audio"
+                checked={includeAudio}
+                onCheckedChange={setIncludeAudio}
+              />
+            </div>
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={isGenerating}>
+            Cancel
+          </Button>
+          <Button onClick={handleRegenerate} disabled={isGenerating || !prompt.trim()}>
+            {isGenerating ? (
+              <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Generating...</>
+            ) : (
+              <><Sparkles className="h-4 w-4 mr-2" /> Start Regeneration</>
+            )}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}

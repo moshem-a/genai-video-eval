@@ -1,6 +1,7 @@
 export type Severity = 'critical' | 'warning' | 'info';
 
-export type AgentType = 'object_permanence' | 'physics_motion' | 'temporal_consistency';
+export type DefaultAgentType = 'object_permanence' | 'physics_motion' | 'temporal_consistency';
+export type AgentType = DefaultAgentType | string;
 
 export interface Flag {
   id: string;
@@ -33,6 +34,7 @@ export interface AnalysisResult {
 }
 
 export interface AgentConfig {
+  id: string;
   type: AgentType;
   enabled: boolean;
   sensitivity: number; // 0-100
@@ -40,10 +42,12 @@ export interface AgentConfig {
   description: string;
   icon: string;
   color: string;
+  systemPrompt?: string;
 }
 
 export const DEFAULT_AGENT_CONFIGS: AgentConfig[] = [
   {
+    id: 'agent-object-permanence',
     type: 'object_permanence',
     enabled: true,
     sensitivity: 70,
@@ -53,6 +57,7 @@ export const DEFAULT_AGENT_CONFIGS: AgentConfig[] = [
     color: 'hsl(var(--primary))',
   },
   {
+    id: 'agent-physics-motion',
     type: 'physics_motion',
     enabled: true,
     sensitivity: 70,
@@ -62,6 +67,7 @@ export const DEFAULT_AGENT_CONFIGS: AgentConfig[] = [
     color: 'hsl(var(--warning))',
   },
   {
+    id: 'agent-temporal-consistency',
     type: 'temporal_consistency',
     enabled: true,
     sensitivity: 70,

@@ -7,12 +7,19 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { VideoEntry } from '@/lib/batch-types';
 import { recommendStrategy, flagsToSections, generateRegenerationPrompt } from '@/lib/remediation';
 import { VEO_MODELS, VeoModelKey } from '@/lib/veo';
+import { PromptEditorDialog } from './PromptEditorDialog';
 import { cn } from '@/lib/utils';
 
 interface RemediationOptionsProps {
   video: VideoEntry;
   onCut: (sections: { start: number; end: number }[]) => void;
-  onRegenerate: () => void;
+  onRegenerate: (options: {
+    prompt: string;
+    model: VeoModelKey;
+    durationSeconds: number;
+    aspectRatio: '16:9' | '9:16' | '1:1';
+    includeAudio: boolean;
+  }) => void;
   isRegenerating?: boolean;
   regenerationStatus?: string;
 }
@@ -21,21 +28,20 @@ export function RemediationOptions({ video, onCut, onRegenerate, isRegenerating,
   const [generatedPrompt, setGeneratedPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [showEditor, setShowEditor] = useState(false);
+  const [isPreparingPrompt, setIsPreparingPrompt] = useState(false);
+  const [initialPrompt, setInitialPrompt] = useState('');
 
   const recommended = recommendStrategy(video.detectedFlags, video.duration);
   const sections = flagsToSections(video.detectedFlags);
   const totalCutDuration = sections.reduce((sum, s) => sum + (s.end - s.start), 0);
   const cutPercentage = video.duration > 0 ? Math.round((totalCutDuration / video.duration) * 100) : 0;
 
-  const handleGeneratePrompt = async () => {
-    setIsGenerating(true);
-    try {
-      const prompt = await generateRegenerationPrompt(video.name, video.detectedFlags, video.duration);
-      setGeneratedPrompt(prompt);
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setIsGenerating(false);
+  const handleOpenEditor = () => {
+    setShowEditor(true);
+    // The prompt will be generated inside the dialog or we can trigger it now
+    if (!initialPrompt) {
+      generateRegenerationPrompt(video.name, video.detectedFlags, video.duration).then(setInitialPrompt);
     }
   };
 
@@ -97,7 +103,7 @@ export function RemediationOptions({ video, onCut, onRegenerate, isRegenerating,
               <span className="text-[10px] font-medium text-primary uppercase tracking-wider">Recommended</span>
             )}
           </div>
-          <CardTitle className="text-base">Regenerate with Veo</CardTitle>
+          <CardTitle className="text-base">Advanced Regeneration</CardTitle>
           <CardDescription className="text-xs">
             Generate a new video using Google Veo and re-evaluate automatically
           </CardDescription>
@@ -108,13 +114,13 @@ export function RemediationOptions({ video, onCut, onRegenerate, isRegenerating,
             size="sm"
             variant={recommended === 'regenerate' ? 'default' : 'secondary'}
             className="w-full"
-            onClick={onRegenerate}
-            disabled={isRegenerating || isGenerating}
+            onClick={handleOpenEditor}
+            disabled={isRegenerating || isGenerating || isPreparingPrompt}
           >
             {isRegenerating ? (
               <><Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> {regenerationStatus || 'Regenerating...'}</>
             ) : (
-              <><Sparkles className="h-3.5 w-3.5 mr-1.5" /> Regenerate with Veo</>
+              <><Sparkles className="h-3.5 w-3.5 mr-1.5" /> Configure & Regenerate</>
             )}
           </Button>
 
@@ -137,13 +143,13 @@ export function RemediationOptions({ video, onCut, onRegenerate, isRegenerating,
               size="sm"
               variant="ghost"
               className="w-full text-xs"
-              onClick={handleGeneratePrompt}
-              disabled={isGenerating || isRegenerating}
+              onClick={handleOpenEditor}
+              disabled={isGenerating || isRegenerating || isPreparingPrompt}
             >
-              {isGenerating ? (
-                <><Loader2 className="h-3 w-3 mr-1.5 animate-spin" /> Generating prompt...</>
+              {isPreparingPrompt ? (
+                <><Loader2 className="h-3 w-3 mr-1.5 animate-spin" /> Preparing Editor...</>
               ) : (
-                <><RefreshCw className="h-3 w-3 mr-1.5" /> Generate Prompt Only</>
+                <><RefreshCw className="h-3 w-3 mr-1.5" /> Generate Prompt Filter</>
               )}
             </Button>
           ) : (
@@ -161,6 +167,18 @@ export function RemediationOptions({ video, onCut, onRegenerate, isRegenerating,
           )}
         </CardContent>
       </Card>
+
+      <PromptEditorDialog
+        open={showEditor}
+        onOpenChange={setShowEditor}
+        initialPrompt={initialPrompt}
+        initialDuration={video.duration}
+        onRegenerate={(options) => {
+          setShowEditor(false);
+          onRegenerate(options);
+        }}
+        isGenerating={isRegenerating || false}
+      />
     </div>
   );
 }

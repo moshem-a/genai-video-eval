@@ -2,31 +2,31 @@ import { useState, useCallback } from 'react';
 import {
   BatchEvaluation,
   VideoEntry,
-  GroundTruthIssue,
+  Flag,
   createVideoEntry,
   createGroundTruthIssue,
-} from '@/lib/batch-types';
-import { AgentConfig, DEFAULT_AGENT_CONFIGS, Flag } from '@/lib/types';
-import { extractFrames } from '@/lib/video-utils';
-import { runAgent, computeCoherenceScore } from '@/lib/gemini';
+} from '../lib/batch-types';
+import { AgentConfig } from '../lib/types';
+import { extractFrames } from '../lib/video-utils';
+import { runAgent, computeCoherenceScore } from '../lib/gemini';
+import { getStoredAgentConfigs, saveAgentConfigs } from '../lib/agent-storage';
 import { matchCoverage } from '@/lib/coverage';
 
 const BATCH_STORAGE_KEY = 'aegis_batch_evaluations';
 
 function saveBatchToStorage(batch: BatchEvaluation) {
   try {
-    // We can't serialize File objects, so we store metadata only
     const serializable = {
       ...batch,
       videos: batch.videos.map(v => ({
         ...v,
-        file: undefined, // Can't serialize File
-        videoUrl: '', // Will be regenerated
+        file: undefined,
+        videoUrl: '',
       })),
     };
     localStorage.setItem(`${BATCH_STORAGE_KEY}_${batch.id}`, JSON.stringify(serializable));
   } catch {
-    // Storage full or other error, continue without persistence
+    // Ignore storage errors
   }
 }
 
@@ -34,7 +34,12 @@ export function useBatchEvaluation() {
   const [batch, setBatch] = useState<BatchEvaluation | null>(null);
   const [isEvaluating, setIsEvaluating] = useState(false);
   const [currentVideoIndex, setCurrentVideoIndex] = useState(-1);
-  const [agentConfigs, setAgentConfigs] = useState<AgentConfig[]>(DEFAULT_AGENT_CONFIGS);
+  const [agentConfigs, setAgentConfigsState] = useState<AgentConfig[]>(getStoredAgentConfigs());
+
+  const setAgentConfigs = useCallback((next: AgentConfig[]) => {
+    setAgentConfigsState(next);
+    saveAgentConfigs(next);
+  }, []);
 
   const createBatch = useCallback((name: string, coverageThreshold: number = 0.85) => {
     const newBatch: BatchEvaluation = {
@@ -99,10 +104,51 @@ export function useBatchEvaluation() {
     setBatch(prev => prev ? { ...prev, coverageThreshold: threshold } : prev);
   }, []);
 
+  const applyMetadata = useCallback(async (files: File[]) => {
+    if (!batch) return;
+
+    for (const file of files) {
+      try {
+        const text = await file.text();
+        let metadata: Record<string, any[]> = {};
+        
+        if (file.name.endsWith('.json')) {
+          metadata = JSON.parse(text);
+        } else {
+          text.split('\n').forEach(line => {
+            const [videoName, description, startTime] = line.split('|').map(s => s.trim());
+            if (videoName && description && startTime) {
+              if (!metadata[videoName]) metadata[videoName] = [];
+              metadata[videoName].push({ description, startTime: parseFloat(startTime) });
+            }
+          });
+        }
+
+        setBatch(prev => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            videos: prev.videos.map(v => {
+              const videoMetadata = metadata[v.name] || metadata[v.file.name];
+              if (videoMetadata) {
+                const newGroundTruth = videoMetadata.map(m => 
+                  createGroundTruthIssue(m.description, m.startTime, m.endTime)
+                );
+                return { ...v, groundTruth: [...v.groundTruth, ...newGroundTruth] };
+              }
+              return v;
+            })
+          };
+        });
+      } catch (e) {
+        console.error('Failed to parse metadata file:', file.name, e);
+      }
+    }
+  }, [batch]);
+
   const evaluateVideo = useCallback(async (video: VideoEntry): Promise<VideoEntry> => {
     const enabledAgents = agentConfigs.filter(a => a.enabled);
 
-    // Step 1: Extract frames
     const updateStatus = (status: VideoEntry['status']) => {
       setBatch(prev => {
         if (!prev) return prev;
@@ -115,18 +161,17 @@ export function useBatchEvaluation() {
 
     updateStatus('extracting');
     const { frames, duration } = await extractFrames(video.file, 10);
-    video = { ...video, duration };
+    const updatedVideo = { ...video, duration };
 
     if (frames.length === 0) {
-      return { ...video, status: 'error', error: 'No frames extracted' };
+      return { ...updatedVideo, status: 'error', error: 'No frames extracted' };
     }
 
-    // Step 2: Run agents
     updateStatus('analyzing');
     const agentResults = await Promise.all(
       enabledAgents.map(async (config) => {
         try {
-          const flags = await runAgent(config.type, frames, config.sensitivity, duration);
+          const flags = await runAgent(config, frames, duration);
           return { agent: config.type, flags, status: 'complete' as const };
         } catch (e) {
           return {
@@ -140,14 +185,13 @@ export function useBatchEvaluation() {
     );
 
     const allFlags = agentResults.flatMap(r => r.flags).sort((a, b) => a.timestampSeconds - b.timestampSeconds);
-    video = { ...video, detectedFlags: allFlags, agentResults };
+    const analyzedVideo = { ...updatedVideo, detectedFlags: allFlags, agentResults };
 
-    // Step 3: Match coverage
     updateStatus('matching');
-    const { coverage, matchedGT, unmatchedGT } = await matchCoverage(video);
+    const { coverage, matchedGT, unmatchedGT } = await matchCoverage(analyzedVideo);
 
     return {
-      ...video,
+      ...analyzedVideo,
       coverage,
       groundTruth: [
         ...matchedGT,
@@ -180,7 +224,6 @@ export function useBatchEvaluation() {
         });
       }
 
-      // Update batch with each completed video
       setBatch(prev => {
         if (!prev) return prev;
         const videos = [...prev.videos];
@@ -189,7 +232,6 @@ export function useBatchEvaluation() {
       });
     }
 
-    // Calculate overall coverage
     const completedVideos = updatedVideos.filter(v => v.status === 'complete' && v.groundTruth.length > 0);
     const overallCoverage = completedVideos.length > 0
       ? completedVideos.reduce((sum, v) => sum + v.coverage, 0) / completedVideos.length
@@ -232,6 +274,7 @@ export function useBatchEvaluation() {
     addGroundTruth,
     removeGroundTruth,
     updateThreshold,
+    applyMetadata,
     runBatchEvaluation,
     reset,
     setBatch,

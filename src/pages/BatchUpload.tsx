@@ -28,6 +28,7 @@ const BatchUpload = () => {
     addGroundTruth,
     removeGroundTruth,
     updateThreshold,
+    applyMetadata,
     runBatchEvaluation,
     reset,
   } = useBatchEvaluation();
@@ -36,6 +37,7 @@ const BatchUpload = () => {
   const [isDragging, setIsDragging] = useState(false);
   const [showApiDialog, setShowApiDialog] = useState(!hasApiKey());
   const [batchName, setBatchName] = useState('');
+  const [isDraggingMetadata, setIsDraggingMetadata] = useState(false);
 
   // Initialize batch on first interaction
   const ensureBatch = useCallback(() => {
@@ -57,6 +59,23 @@ const BatchUpload = () => {
     const files = Array.from(e.target.files || []);
     if (files.length > 0) addVideos(files);
   }, [addVideos, ensureBatch]);
+
+  const handleMetadataDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDraggingMetadata(false);
+    const files = Array.from(e.dataTransfer.files).filter(f => f.type === 'application/json' || f.name.endsWith('.json') || f.name.endsWith('.txt'));
+    if (files.length > 0) handleMetadataFiles(files);
+  }, [batch]);
+
+  const handleMetadataInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length > 0) handleMetadataFiles(files);
+  }, [batch]);
+
+  const handleMetadataFiles = async (files: File[]) => {
+    ensureBatch();
+    await applyMetadata(files);
+  };
 
   const handleRunEvaluation = async () => {
     await runBatchEvaluation();
@@ -100,19 +119,19 @@ const BatchUpload = () => {
               className="text-sm"
             />
 
-            {/* Dropzone */}
+            {/* Video Dropzone */}
             <div
               onDragOver={e => { e.preventDefault(); setIsDragging(true); }}
               onDragLeave={() => setIsDragging(false)}
               onDrop={handleDrop}
               className={cn(
-                'flex flex-col items-center justify-center rounded-lg border-2 border-dashed p-8 transition-all',
+                'flex flex-col items-center justify-center rounded-lg border-2 border-dashed p-6 transition-all',
                 isDragging ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50',
                 isEvaluating && 'pointer-events-none opacity-50'
               )}
             >
               <Film className="h-6 w-6 text-muted-foreground mb-2" />
-              <p className="text-sm text-muted-foreground mb-2">Drop videos here</p>
+              <p className="text-xs text-muted-foreground mb-2 text-center">Drop videos here or</p>
               <label>
                 <input
                   type="file"
@@ -124,7 +143,37 @@ const BatchUpload = () => {
                 />
                 <Button variant="secondary" size="sm" asChild>
                   <span className="cursor-pointer">
-                    <Upload className="h-3.5 w-3.5 mr-1.5" /> Browse
+                    <Upload className="h-3 w-3 mr-1" /> Browse Videos
+                  </span>
+                </Button>
+              </label>
+            </div>
+
+            {/* Metadata Dropzone */}
+            <div
+              onDragOver={e => { e.preventDefault(); setIsDraggingMetadata(true); }}
+              onDragLeave={() => setIsDraggingMetadata(false)}
+              onDrop={handleMetadataDrop}
+              className={cn(
+                'flex flex-col items-center justify-center rounded-lg border-2 border-dashed p-6 transition-all bg-muted/20',
+                isDraggingMetadata ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50',
+                isEvaluating && 'pointer-events-none opacity-50'
+              )}
+            >
+              <Upload className="h-6 w-6 text-muted-foreground mb-2" />
+              <p className="text-xs text-muted-foreground mb-2 text-center">Add JSON/Text Metadata</p>
+              <label>
+                <input
+                  type="file"
+                  accept=".json,.txt"
+                  multiple
+                  onChange={handleMetadataInput}
+                  className="hidden"
+                  disabled={isEvaluating}
+                />
+                <Button variant="outline" size="sm" asChild>
+                  <span className="cursor-pointer">
+                    <Upload className="h-3 w-3 mr-1" /> Upload Data
                   </span>
                 </Button>
               </label>

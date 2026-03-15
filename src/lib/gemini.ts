@@ -1,5 +1,5 @@
 import { GoogleGenerativeAI, SchemaType } from '@google/generative-ai';
-import { AgentType, Flag, Severity } from './types';
+import { AgentConfig, Flag, Severity } from './types';
 import { AGENT_DEFINITIONS, FLAG_TOOL_SCHEMA } from './agents';
 import { parseTimestamp } from './video-utils';
 import { getStoredApiKey, getStoredModel } from './gemini-config';
@@ -21,21 +21,27 @@ function getClient(): GoogleGenerativeAI {
  * Run a single agent analysis on the provided frames
  */
 export async function runAgent(
-  agentType: AgentType,
+  config: AgentConfig,
   frames: string[],
-  sensitivity: number = 70,
   videoDuration: number = 0
 ): Promise<Flag[]> {
   const client = getClient();
-  const agentDef = AGENT_DEFINITIONS[agentType];
+  const agentType = config.type;
+  const sensitivity = config.sensitivity;
+  
+  // Use custom system prompt if available, otherwise fallback to default
+  const defaultDef = AGENT_DEFINITIONS[agentType as any];
+  const systemPrompt = config.systemPrompt || defaultDef?.systemPrompt || `Analyze video frames for ${config.label} issues.`;
+  const toolName = defaultDef?.toolName || `report_${agentType.replace(/\s+/g, '_').toLowerCase()}_flags`;
+  const toolDescription = defaultDef?.toolDescription || `Report detected ${config.label} violations in the video frames.`;
 
   const model = client.getGenerativeModel({
     model: getStoredModel(),
-    systemInstruction: agentDef.systemPrompt + `\n\nSensitivity level: ${sensitivity}/100. Higher sensitivity means flag more subtle issues. The video is approximately ${Math.round(videoDuration)} seconds long. These frames are evenly spaced throughout the video.`,
+    systemInstruction: systemPrompt + `\n\nSensitivity level: ${sensitivity}/100. Higher sensitivity means flag more subtle issues. The video is approximately ${Math.round(videoDuration)} seconds long. These frames are evenly spaced throughout the video.`,
     tools: [{
       functionDeclarations: [{
-        name: agentDef.toolName,
-        description: agentDef.toolDescription,
+        name: toolName,
+        description: toolDescription,
         parameters: {
           type: SchemaType.OBJECT,
           properties: {
@@ -61,7 +67,7 @@ export async function runAgent(
     toolConfig: {
       functionCallingConfig: {
         mode: 'ANY' as any,
-        allowedFunctionNames: [agentDef.toolName],
+        allowedFunctionNames: [toolName],
       },
     },
   });

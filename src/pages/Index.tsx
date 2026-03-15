@@ -12,8 +12,10 @@ import { IssueList } from '@/components/IssueList';
 import { MetadataPanel } from '@/components/MetadataPanel';
 import { RemediationOptions } from '@/components/RemediationOptions';
 import { RegeneratedResults } from '@/components/RegeneratedResults';
+import { VersionHistory } from '@/components/VersionHistory';
 import { Flag } from '@/lib/types';
 import { VideoEntry } from '@/lib/batch-types';
+import { VeoModelKey } from '@/lib/veo';
 import { Shield, RotateCcw, Settings, Layers, Film, Wrench } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ApiKeyDialog } from '@/components/ApiKeyDialog';
@@ -65,9 +67,15 @@ const Index = () => {
   const handleConfirm = useCallback((id: string) => updateFlag(id, { confirmed: true, dismissed: false }), [updateFlag]);
   const handleDismiss = useCallback((id: string) => updateFlag(id, { dismissed: true, confirmed: false }), [updateFlag]);
 
-  const handleRegenerate = useCallback(() => {
+  const handleRegenerate = useCallback((options: {
+    prompt: string;
+    model: VeoModelKey;
+    durationSeconds: number;
+    aspectRatio: '16:9' | '9:16' | '1:1';
+    includeAudio: boolean;
+  }) => {
     if (!result) return;
-    regenerate(result.videoName, result.flags, result.videoDuration);
+    regenerate(result.videoName, result.videoDuration, options);
   }, [result, regenerate]);
 
   const handleReset = useCallback(() => {
@@ -172,6 +180,14 @@ const Index = () => {
                     onConfirm={handleConfirm}
                     onDismiss={handleDismiss}
                   />
+
+                  {regeneration.versions.length > 0 && (
+                    <VersionHistory
+                      original={result!}
+                      versions={regeneration.versions}
+                      onFlagClick={setCurrentTime}
+                    />
+                  )}
                 </>
               ) : (
                 <>
@@ -193,12 +209,14 @@ const Index = () => {
                 </>
               )}
 
-              {/* Version 2 — Regenerated Results */}
-              <RegeneratedResults
-                regeneration={regeneration}
-                originalScore={result.coherenceScore}
-                originalFlagCount={result.flags.length}
-              />
+              {/* Versioned Results — Active Status */}
+              {(regeneration.status === 'generating' || regeneration.status === 'evaluating' || regeneration.status === 'error' || regeneration.status === 'complete') && (
+                <RegeneratedResults
+                  regeneration={regeneration}
+                  originalScore={result.coherenceScore}
+                  originalFlagCount={result.flags.length}
+                />
+              )}
             </div>
 
             <div className="space-y-4 hidden lg:block">

@@ -16,6 +16,7 @@ interface VeoGenerateOptions {
   model?: VeoModelKey;
   aspectRatio?: '16:9' | '9:16' | '1:1';
   durationSeconds?: number;
+  includeAudio?: boolean;
   onStatusUpdate?: (status: string) => void;
 }
 
@@ -39,6 +40,7 @@ export async function generateVideoWithVeo(options: VeoGenerateOptions): Promise
     model = 'veo-3.0',
     aspectRatio = '16:9',
     durationSeconds = 5,
+    includeAudio = true,
     onStatusUpdate,
   } = options;
 
@@ -62,6 +64,7 @@ export async function generateVideoWithVeo(options: VeoGenerateOptions): Promise
           aspectRatio,
           personGeneration: 'allow_all',
           durationSeconds,
+          ...(includeAudio === true ? { includeAudio: true } : {}),
         },
       }),
     }
@@ -135,25 +138,33 @@ async function pollOperation(
     }
 
     const pollData = await pollResponse.json();
+    console.log('Veo poll response:', JSON.stringify(pollData).slice(0, 500));
 
     if (pollData.done) {
-      // Check for errors in the response
       if (pollData.error) {
         throw new Error(`Video generation failed: ${pollData.error.message || JSON.stringify(pollData.error)}`);
       }
 
-      // Extract video URI from response
-      const videos = pollData.response?.generateVideoResponse?.generatedSamples
-        || pollData.response?.generatedVideos
-        || [];
+      // Extract video URI from response - checking multiple possible structures
+      const response = pollData.response || {};
+      const generatedVideos = response.generateVideoResponse?.generatedSamples 
+        || response.generatedVideos 
+        || response.generatedSamples 
+        || response.videos 
+        || response.output?.generatedVideos 
+        || (Array.isArray(response) ? response : []);
 
-      if (videos.length === 0) {
-        throw new Error('Video generation completed but no video was returned. The content may have been filtered.');
+      if (!generatedVideos || (Array.isArray(generatedVideos) && generatedVideos.length === 0)) {
+        console.error('No video found in Veo success response:', JSON.stringify(pollData));
+        throw new Error('Video generation completed but no video was returned. Please try a different prompt or model.');
       }
 
-      const videoUri = videos[0]?.video?.uri || videos[0]?.uri;
+      const firstVideo = Array.isArray(generatedVideos) ? generatedVideos[0] : generatedVideos;
+      const videoUri = firstVideo?.video?.uri || firstVideo?.uri;
+      
       if (!videoUri) {
-        throw new Error('Video URI not found in response');
+        console.error('Video URI missing in Veo success response:', JSON.stringify(pollData));
+        throw new Error('Video URI not found in the completion response.');
       }
 
       return videoUri;

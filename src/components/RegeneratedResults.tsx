@@ -5,7 +5,7 @@ import { Flag } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, CheckCircle2, XCircle, Sparkles, ArrowDown } from 'lucide-react';
-import { useCallback, useState } from 'react';
+import { useCallback, useState, useMemo } from 'react';
 
 interface RegeneratedResultsProps {
   regeneration: RegenerationResult;
@@ -24,6 +24,14 @@ export function RegeneratedResults({
     setSelectedFlagId(flag.id);
   }, []);
 
+  const versionNumber = (regeneration.versions?.length || 0) + (regeneration.status === 'complete' ? 0 : 1) + 1;
+  const latestVersion = useMemo(() => {
+    if (!regeneration.versions || regeneration.versions.length === 0) return null;
+    return regeneration.versions[regeneration.versions.length - 1];
+  }, [regeneration.versions]);
+
+  const reEvaluation = latestVersion?.reEvaluation;
+
   if (regeneration.status === 'idle') return null;
 
   return (
@@ -33,7 +41,7 @@ export function RegeneratedResults({
         <div className="flex-1 h-px bg-border" />
         <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
           <ArrowDown className="h-4 w-4" />
-          <span>Version 2 — Regenerated</span>
+          <span>Version {versionNumber} — Regenerated</span>
           <ArrowDown className="h-4 w-4" />
         </div>
         <div className="flex-1 h-px bg-border" />
@@ -91,7 +99,7 @@ export function RegeneratedResults({
       )}
 
       {/* Complete — Show Results */}
-      {regeneration.status === 'complete' && regeneration.reEvaluation && (
+      {regeneration.status === 'complete' && reEvaluation && (
         <div className="space-y-4">
           {/* Generated Video */}
           {regeneration.generatedVideoUrl && (
@@ -102,7 +110,7 @@ export function RegeneratedResults({
                     <Sparkles className="h-4 w-4 text-primary" />
                     Regenerated Video
                   </CardTitle>
-                  <Badge variant="secondary" className="text-xs">Version 2</Badge>
+                  <Badge variant="secondary" className="text-xs">Version {versionNumber}</Badge>
                 </div>
               </CardHeader>
               <CardContent className="p-0 px-4 pb-4">
@@ -135,22 +143,22 @@ export function RegeneratedResults({
                 <div>
                   <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Regenerated</p>
                   <p className="text-2xl font-bold text-foreground">
-                    {regeneration.reEvaluation.coherenceScore}
+                    {reEvaluation.coherenceScore}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    {regeneration.reEvaluation.flags.length} issues
+                    {reEvaluation.flags.length} issues
                   </p>
                 </div>
               </div>
 
               {/* Verdict */}
               <div className="mt-3 pt-3 border-t border-border text-center">
-                {regeneration.reEvaluation.flags.length < originalFlagCount ? (
+                {reEvaluation.flags.length < originalFlagCount ? (
                   <div className="flex items-center justify-center gap-2 text-sm" style={{ color: 'hsl(var(--success))' }}>
                     <CheckCircle2 className="h-4 w-4" />
-                    <span>Improved! {originalFlagCount - regeneration.reEvaluation.flags.length} fewer issues</span>
+                    <span>Improved! {originalFlagCount - reEvaluation.flags.length} fewer issues</span>
                   </div>
-                ) : regeneration.reEvaluation.flags.length === originalFlagCount ? (
+                ) : reEvaluation.flags.length === originalFlagCount ? (
                   <p className="text-sm text-muted-foreground">Same number of issues detected</p>
                 ) : (
                   <div className="flex items-center justify-center gap-2 text-sm text-destructive">
@@ -163,13 +171,13 @@ export function RegeneratedResults({
           </Card>
 
           {/* Re-evaluation Issues */}
-          {regeneration.reEvaluation.flags.length > 0 && (
+          {reEvaluation.flags.length > 0 && (
             <div>
               <h4 className="text-sm font-medium text-foreground mb-2">
-                Remaining Issues ({regeneration.reEvaluation.flags.length})
+                Remaining Issues ({reEvaluation.flags.length})
               </h4>
               <IssueList
-                flags={regeneration.reEvaluation.flags}
+                flags={reEvaluation.flags}
                 selectedFlagId={selectedFlagId}
                 onFlagClick={handleFlagClick}
                 onConfirm={() => {}}
