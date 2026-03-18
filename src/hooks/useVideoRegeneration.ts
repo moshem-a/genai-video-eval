@@ -37,9 +37,11 @@ export function useVideoRegeneration() {
       durationSeconds: number;
       aspectRatio: '16:9' | '9:16' | '1:1';
       includeAudio: boolean;
+      strategy?: 'creative' | 'similarity';
+      originalVideoUrl?: string;
     }
   ) => {
-    const { prompt, model, durationSeconds, aspectRatio, includeAudio } = options;
+    const { prompt, model, durationSeconds, aspectRatio, includeAudio, strategy = 'creative', originalVideoUrl } = options;
     setRegeneration(prev => ({
       ...prev,
       status: 'generating',
@@ -47,6 +49,23 @@ export function useVideoRegeneration() {
     }));
 
     try {
+      let referenceImages: string[] | undefined;
+
+      // Extract reference frames if similarity strategy is chosen
+      if (strategy === 'similarity' && originalVideoUrl) {
+        setRegeneration(prev => ({ ...prev, statusMessage: 'Extracting style references from original video...' }));
+        try {
+          const response = await fetch(originalVideoUrl);
+          const blob = await response.blob();
+          const file = new File([blob], 'reference.mp4', { type: 'video/mp4' });
+          // Extract 3 reference frames (start, middle, end)
+          const { frames } = await extractFrames(file, 3);
+          referenceImages = frames;
+        } catch (err) {
+          console.warn('Failed to extract reference frames, falling back to creative mode:', err);
+        }
+      }
+
       // Generate video with Veo
       const { videoUrl } = await generateVideoWithVeo({
         prompt,
@@ -54,6 +73,7 @@ export function useVideoRegeneration() {
         aspectRatio,
         durationSeconds,
         includeAudio,
+        referenceImages,
         onStatusUpdate: (statusMessage) => {
           setRegeneration(prev => ({ ...prev, statusMessage }));
         },

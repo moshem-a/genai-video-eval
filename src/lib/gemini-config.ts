@@ -1,4 +1,7 @@
 export const GEMINI_MODELS = [
+  { id: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash', description: 'Fast and reliable' },
+  { id: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro', description: 'High reasoning capability' },
+  { id: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash', description: 'Next-gen fast' },
   { id: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash', description: 'Fast & balanced' },
   { id: 'gemini-2.5-flash-lite', label: 'Gemini 2.5 Flash Lite', description: 'Fastest, cheapest' },
   { id: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro', description: 'Top-tier reasoning' },
@@ -20,7 +23,7 @@ export function setStoredApiKey(key: string) {
 }
 
 export function getStoredModel(): GeminiModelId {
-  return (localStorage.getItem(STORAGE_KEY_MODEL) as GeminiModelId) || 'gemini-3.1-pro-preview';
+  return (localStorage.getItem(STORAGE_KEY_MODEL) as GeminiModelId) || 'gemini-1.5-pro';
 }
 
 export function setStoredModel(model: GeminiModelId) {

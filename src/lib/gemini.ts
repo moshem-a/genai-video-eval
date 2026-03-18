@@ -10,6 +10,7 @@ let lastApiKey: string = '';
 function getClient(): GoogleGenerativeAI {
   const apiKey = getStoredApiKey();
   if (!apiKey) throw new Error('No Gemini API key configured. Click the ⚙️ icon to add your key.');
+  
   if (!genAI || apiKey !== lastApiKey) {
     genAI = new GoogleGenerativeAI(apiKey);
     lastApiKey = apiKey;
@@ -18,9 +19,42 @@ function getClient(): GoogleGenerativeAI {
 }
 
 /**
- * Run a single agent analysis on the provided frames
+ * Run a single agent analysis with retry logic
  */
 export async function runAgent(
+  config: AgentConfig,
+  frames: string[],
+  videoDuration: number = 0,
+  retries: number = 3
+): Promise<Flag[]> {
+  let lastError: any = null;
+  
+  for (let i = 0; i <= retries; i++) {
+    try {
+      return await executeAgentCall(config, frames, videoDuration);
+    } catch (e: any) {
+      lastError = e;
+      const errorMessage = e?.message || String(e);
+      const isRateLimit = errorMessage.includes('429') || errorMessage.toLowerCase().includes('too many requests');
+      
+      console.warn(`Agent call failed (attempt ${i + 1}/${retries + 1})${isRateLimit ? ' [Rate Limit]' : ''}:`, e);
+      
+      if (i < retries) {
+        // Wait before retry (exponential backoff)
+        // If it's a rate limit, wait longer
+        const baseDelay = isRateLimit ? 3000 : 1000;
+        await new Promise(r => setTimeout(r, baseDelay * Math.pow(2, i)));
+      }
+    }
+  }
+  
+  throw lastError || new Error('Agent failed after retries');
+}
+
+/**
+ * Core execution logic for a single agent analysis
+ */
+async function executeAgentCall(
   config: AgentConfig,
   frames: string[],
   videoDuration: number = 0
@@ -84,22 +118,43 @@ export async function runAgent(
   });
 
   const result = await model.generateContent([
-    `Analyze these ${frames.length} sequential video frames for issues. Frame numbers correspond to evenly-spaced timestamps across the video duration of ${Math.round(videoDuration)} seconds.`,
+    `CRITICAL ANALYSIS TASK: Analyze these ${frames.length} sequential video frames for issues. 
+    NOTE: This is an AI-generated video and is EXPECTED to have subtle artifacts, hallucinations, or physical inconsistencies. 
+    BE HIGHLY CRITICAL. Flag any issues you detect, no matter how subtle.
+    Frame numbers correspond to evenly-spaced timestamps across the video duration of ${Math.round(videoDuration)} seconds.`,
     ...imageParts,
   ]);
 
   const response = result.response;
-  const functionCalls = response.functionCalls();
-
-  if (!functionCalls || functionCalls.length === 0) {
-    // Try parsing text response as fallback
-    return [];
+  
+  // Check for blocked content or non-success finish reasons
+  if (response.promptFeedback?.blockReason) {
+    throw new Error(`Analysis blocked by safety filters: ${response.promptFeedback.blockReason}`);
   }
 
-  const call = functionCalls[0];
+  const funcCalls = response.functionCalls();
+
+  if (!funcCalls || funcCalls.length === 0) {
+    // Safely try to get text or other feedback
+    let feedback = 'Agent failed to generate a structured report.';
+    try {
+      const text = response.text();
+      if (text) feedback = `Agent response: ${text.substring(0, 150)}${text.length > 150 ? '...' : ''}`;
+    } catch (e) {
+      // If text() throws, it might be because there is no text part
+      if (response.candidates?.[0]?.finishReason) {
+        feedback = `Agent terminated prematurely: ${response.candidates[0].finishReason}`;
+      }
+    }
+    throw new Error(feedback);
+  }
+
+  const call = funcCalls[0];
   const args = call.args as any;
 
-  if (!args.flags || !Array.isArray(args.flags)) return [];
+  if (!args.flags || !Array.isArray(args.flags)) {
+    return [];
+  }
 
   return args.flags.map((f: any, i: number) => ({
     id: `${agentType}-${i}-${Date.now()}`,

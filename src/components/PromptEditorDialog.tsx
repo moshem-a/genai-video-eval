@@ -20,6 +20,7 @@ interface PromptEditorDialogProps {
     durationSeconds: number;
     aspectRatio: '16:9' | '9:16' | '1:1';
     includeAudio: boolean;
+    strategy: 'creative' | 'similarity';
   }) => void;
   isGenerating: boolean;
 }
@@ -38,6 +39,7 @@ export function PromptEditorDialog({
   const [duration, setDuration] = useState(initialDuration);
   const [aspectRatio, setAspectRatio] = useState<'16:9' | '9:16' | '1:1'>('16:9');
   const [includeAudio, setIncludeAudio] = useState(false);
+  const [strategy, setStrategy] = useState<'creative' | 'similarity'>('similarity');
 
   useEffect(() => {
     if (open) {
@@ -53,6 +55,7 @@ export function PromptEditorDialog({
       durationSeconds: duration,
       aspectRatio,
       includeAudio,
+      strategy,
     });
   };
 
@@ -146,10 +149,29 @@ export function PromptEditorDialog({
 
             <div className="flex items-center justify-between p-3 rounded-lg border bg-muted/30">
               <div className="flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-primary" />
+                <div className="space-y-0.5">
+                  <Label className="text-sm">Strategy</Label>
+                  <p className="text-[10px] text-muted-foreground">Continuity vs Creative</p>
+                </div>
+              </div>
+              <Select value={strategy} onValueChange={(v) => setStrategy(v as any)}>
+                <SelectTrigger className="w-[120px] h-8 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="similarity">Continuity</SelectItem>
+                  <SelectItem value="creative">Creative</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex items-center justify-between p-3 rounded-lg border bg-muted/30">
+              <div className="flex items-center gap-2">
                 <Music className="h-4 w-4 text-primary" />
                 <div className="space-y-0.5">
                   <Label htmlFor="audio" className="text-sm">Include Audio</Label>
-                  <p className="text-[10px] text-muted-foreground">Add AI-generated soundtrack</p>
+                  <p className="text-[10px] text-muted-foreground">Add AI soundtrack</p>
                 </div>
               </div>
               <Switch

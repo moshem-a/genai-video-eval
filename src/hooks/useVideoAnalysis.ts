@@ -13,7 +13,7 @@ interface UseVideoAnalysisReturn {
   error: string | null;
   agentConfigs: AgentConfig[];
   setAgentConfigs: (configs: AgentConfig[]) => void;
-  analyzeVideo: (file: File) => Promise<void>;
+  analyzeVideo: (file: File, originPrompt?: string) => Promise<void>;
   reset: () => void;
   updateFlag: (flagId: string, update: Partial<Flag>) => void;
 }
@@ -51,7 +51,7 @@ export function useVideoAnalysis(): UseVideoAnalysisReturn {
     });
   }, []);
 
-  const analyzeVideo = useCallback(async (file: File) => {
+  const analyzeVideo = useCallback(async (file: File, originPrompt?: string) => {
     setIsAnalyzing(true);
     setError(null);
     setProgress(0);
@@ -70,7 +70,7 @@ export function useVideoAnalysis(): UseVideoAnalysisReturn {
     try {
       // Step 1: Extract frames
       setProgress(10);
-      const { frames, duration } = await extractFrames(file, 10, (p) => {
+      const { frames, duration } = await extractFrames(file, 12, (p) => {
         setFrameExtractionProgress(p);
         setProgress(10 + (p / 100) * 20);
       });
@@ -109,6 +109,12 @@ export function useVideoAnalysis(): UseVideoAnalysisReturn {
       const allFlags = results.flatMap(r => r.flags).sort((a, b) => a.timestampSeconds - b.timestampSeconds);
       const coherenceScore = computeCoherenceScore(allFlags);
 
+      // Check if all agents failed
+      const errorCount = results.filter(r => r.status === 'error').length;
+      if (errorCount > 0 && errorCount === enabledAgents.length) {
+        throw new Error('All evaluation agents failed to complete. Please check your API key and connection.');
+      }
+
       setProgress(100);
       setResult({
         id: Date.now().toString(),
@@ -119,6 +125,7 @@ export function useVideoAnalysis(): UseVideoAnalysisReturn {
         coherenceScore,
         agents: results,
         flags: allFlags,
+        originPrompt,
       });
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Analysis failed');

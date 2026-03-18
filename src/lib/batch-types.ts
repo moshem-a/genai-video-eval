@@ -37,6 +37,7 @@ export interface VideoEntry {
   error?: string;
   remediation?: Remediation;
   passed: boolean;
+  originPrompt?: string;
 }
 
 export interface BatchEvaluation {

@@ -19,6 +19,8 @@ interface RemediationOptionsProps {
     durationSeconds: number;
     aspectRatio: '16:9' | '9:16' | '1:1';
     includeAudio: boolean;
+    strategy: 'creative' | 'similarity';
+    originalVideoUrl?: string;
   }) => void;
   isRegenerating?: boolean;
   regenerationStatus?: string;
@@ -41,7 +43,10 @@ export function RemediationOptions({ video, onCut, onRegenerate, isRegenerating,
     setShowEditor(true);
     // The prompt will be generated inside the dialog or we can trigger it now
     if (!initialPrompt) {
-      generateRegenerationPrompt(video.name, video.detectedFlags, video.duration).then(setInitialPrompt);
+      setIsPreparingPrompt(true);
+      generateRegenerationPrompt(video.name, video.detectedFlags, video.duration, video.originPrompt)
+        .then(setInitialPrompt)
+        .finally(() => setIsPreparingPrompt(false));
     }
   };
 
@@ -175,7 +180,10 @@ export function RemediationOptions({ video, onCut, onRegenerate, isRegenerating,
         initialDuration={video.duration}
         onRegenerate={(options) => {
           setShowEditor(false);
-          onRegenerate(options);
+          onRegenerate({
+            ...options,
+            originalVideoUrl: video.videoUrl
+          });
         }}
         isGenerating={isRegenerating || false}
       />

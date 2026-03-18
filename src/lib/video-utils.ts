@@ -4,7 +4,7 @@
  */
 export async function extractFrames(
   videoFile: File,
-  numFrames: number = 10,
+  numFrames: number = 12,
   onProgress?: (progress: number) => void
 ): Promise<{ frames: string[]; duration: number }> {
   return new Promise((resolve, reject) => {
@@ -24,8 +24,8 @@ export async function extractFrames(
       }
 
       const canvas = document.createElement('canvas');
-      // Cap resolution for performance
-      const maxDim = 768;
+      // Cap resolution for performance - increased for better AI detection
+      const maxDim = 800;
       const scale = Math.min(maxDim / video.videoWidth, maxDim / video.videoHeight, 1);
       canvas.width = Math.round(video.videoWidth * scale);
       canvas.height = Math.round(video.videoHeight * scale);

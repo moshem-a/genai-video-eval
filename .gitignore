@@ -7,21 +7,44 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
-*.local
+# Database / Secrets
 .env
 .env.*
 !.env.example
+.supabase/
+supabase/.temp/
 
-# Editor directories and files
-.vscode/*
+# Dependency directories
+node_modules/
+jspm_packages/
+
+# VITE / Build
+dist/
+dist-ssr/
+*.local
+
+# IDE / Editor
+.vscode/
 !.vscode/extensions.json
-.idea
+.idea/
 .DS_Store
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
+*.patch
+
+# Test results
+playwright-report/
+test-results/
+coverage/
+
+# Misc
+temp_pptx/
+tmp/
+.temp/
+*.zip
+*.tar.gz
+*.pptx
+*.img

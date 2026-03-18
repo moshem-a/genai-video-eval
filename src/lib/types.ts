@@ -31,6 +31,7 @@ export interface AnalysisResult {
   coherenceScore: number;
   agents: AgentResult[];
   flags: Flag[];
+  originPrompt?: string; // Add this
 }
 
 export interface AgentConfig {

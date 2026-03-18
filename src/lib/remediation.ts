@@ -52,59 +52,65 @@ export function flagsToSections(flags: Flag[], padding: number = 1): Remediation
   return sections;
 }
 
-/**
- * Generate a Veo 2/3 prompt to regenerate the video without the detected issues.
- */
 export async function generateRegenerationPrompt(
   videoName: string,
   flags: Flag[],
-  videoDuration: number
+  videoDuration: number,
+  originPrompt?: string
 ): Promise<string> {
   const apiKey = getStoredApiKey();
   if (!apiKey) {
     // Fallback static prompt
-    return buildStaticPrompt(videoName, flags);
+    return buildStaticPrompt(videoName, flags, originPrompt);
   }
 
   try {
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: getStoredModel() });
+    const modelOptions = getStoredModel();
+    const model = genAI.getGenerativeModel({ model: modelOptions });
 
-    const prompt = `You are helping a user fix an AI-generated video that has quality issues.
+    const prompt = `You are an expert AI Video Producer helping a user fix an AI-generated video that has quality issues.
+
+${originPrompt ? `Original prompt used to generate this video: "${originPrompt}"` : ''}
 
 Video: "${videoName}" (${Math.round(videoDuration)}s duration)
 
-Detected issues:
-${flags.map(f => `- At ${f.timestamp} (${f.severity}): ${f.description}`).join('\n')}
+Detected issues by AI Evaluation Agents:
+${flags.map(f => `- [${f.category}] At ${f.timestamp} (${f.severity}): ${f.description}`).join('\n')}
 
-Generate a detailed prompt that the user can use with Veo 2 or Veo 3 to regenerate this video WITHOUT the above issues. The prompt should:
-1. Describe the intended video content (infer from the issues what the video likely depicts)
-2. Explicitly instruct to avoid each type of detected issue
-3. Include technical quality requirements
-4. Be formatted as a ready-to-use generation prompt
+Generate a professional, highly detailed prompt for Google Veo 2 or Veo 3 that will fix the issues identified above.
 
-Return ONLY the prompt text, no explanation.`;
+${originPrompt 
+  ? `Analyze the original prompt to understand the user's intent. Identify which specific parts of the prompt might have led to these failures or were too vague. Suggest an improved prompt that:
+1. Retains the original concept and creative intent.
+2. Incorporates specific technical constraints and descriptions that actively resolve the detected issues (e.g., if object permanence failed, add descriptions emphasize consistency).
+3. Explicitly instructs the model to avoid the failed behaviors.`
+  : `The original prompt is unavailable. Infer the intended content from the issues and generate a detailed, high-quality prompt that:
+1. Clearly describes the scene and action.
+2. Includes explicit instructions to avoid the types of errors detected.
+3. Specifies technical quality and consistency requirements.`}
+
+Return ONLY the new prompt text, no conversational filler or explanation.`;
 
     const result = await model.generateContent(prompt);
     return result.response.text();
   } catch (e) {
     console.error('Failed to generate regeneration prompt:', e);
-    return buildStaticPrompt(videoName, flags);
+    return buildStaticPrompt(videoName, flags, originPrompt);
   }
 }
 
-function buildStaticPrompt(videoName: string, flags: Flag[]): string {
-  const issueTypes = [...new Set(flags.map(f => f.category))];
+function buildStaticPrompt(videoName: string, flags: Flag[], originPrompt?: string): string {
   const issueDescriptions = flags.map(f => f.description);
 
-  return `Regenerate the video "${videoName}" with the following corrections:
+  return `${originPrompt ? `Based on: "${originPrompt}"\n\n` : ''}Attempting to fix "${videoName}" with these corrections:
 
 AVOID these issues:
 ${issueDescriptions.map(d => `- ${d}`).join('\n')}
 
-Requirements:
-- Maintain consistent object permanence throughout all frames
-- Ensure physically plausible motion and interactions
-- Keep temporal consistency in lighting, colors, and backgrounds
-- High quality, artifact-free output`;
+Quality Requirements:
+- Consistent object permanence
+- Physically plausible motion
+- Temporal consistency in lighting and colors
+- Artifact-free output`;
 }

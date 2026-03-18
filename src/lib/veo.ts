@@ -17,6 +17,7 @@ interface VeoGenerateOptions {
   aspectRatio?: '16:9' | '9:16' | '1:1';
   durationSeconds?: number;
   includeAudio?: boolean;
+  referenceImages?: string[]; // Array of base64 strings
   onStatusUpdate?: (status: string) => void;
 }
 
@@ -41,13 +42,48 @@ export async function generateVideoWithVeo(options: VeoGenerateOptions): Promise
     aspectRatio = '16:9',
     durationSeconds = 5,
     includeAudio = true,
+    referenceImages,
     onStatusUpdate,
   } = options;
 
-  const modelId = VEO_MODELS[model];
   onStatusUpdate?.('Submitting video generation request...');
 
   // Step 1: Submit the generation request
+  const instance: any = {
+    prompt,
+  };
+
+  // Add reference images as visual style control if provided
+  if (referenceImages && referenceImages.length > 0) {
+    // For Veo 3.x, visual consistency is often handled via a style reference
+    // We'll use the first reference image for maximum impact
+    // For Vertex AI, we must use camelCase for referenceImages and referenceType
+    // NOTE: referenceImages is only supported by Veo 3.1 (preview) on current Vertex AI.
+    // Including it for 3.0 or 2.0 causes a 400 error.
+    if (model === 'veo-3.1' && referenceImages && referenceImages.length > 0) {
+      const base64Data = referenceImages[0].includes(',') ? referenceImages[0].split(',')[1] : referenceImages[0];
+      
+      instance.referenceImages = [
+        {
+          image: {
+            bytesBase64Encoded: base64Data,
+          },
+          referenceType: "STYLE"
+        }
+      ];
+    }
+  }
+
+  const payload = {
+    instances: [instance],
+    parameters: {
+      aspectRatio,
+      durationSeconds,
+      ...(includeAudio === true ? { includeAudio: true } : {}),
+    },
+  };
+
+  const modelId = VEO_MODELS[model];
   const generateResponse = await fetch(
     `${BASE_URL}/models/${modelId}:predictLongRunning`,
     {
@@ -56,17 +92,7 @@ export async function generateVideoWithVeo(options: VeoGenerateOptions): Promise
         'x-goog-api-key': apiKey,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        instances: [{
-          prompt,
-        }],
-        parameters: {
-          aspectRatio,
-          personGeneration: 'allow_all',
-          durationSeconds,
-          ...(includeAudio === true ? { includeAudio: true } : {}),
-        },
-      }),
+      body: JSON.stringify(payload),
     }
   );
 

@@ -16,10 +16,13 @@ import { VersionHistory } from '@/components/VersionHistory';
 import { Flag } from '@/lib/types';
 import { VideoEntry } from '@/lib/batch-types';
 import { VeoModelKey } from '@/lib/veo';
-import { Shield, RotateCcw, Settings, Layers, Film, Wrench } from 'lucide-react';
+import { Shield, RotateCcw, Settings, Layers, Film, Wrench, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 import { ApiKeyDialog } from '@/components/ApiKeyDialog';
 import { hasApiKey } from '@/lib/gemini-config';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 
 const Index = () => {
   const navigate = useNavigate();
@@ -43,6 +46,8 @@ const Index = () => {
   const [currentTime, setCurrentTime] = useState(0);
   const [showApiDialog, setShowApiDialog] = useState(!hasApiKey());
   const [showRemediation, setShowRemediation] = useState(false);
+  const [originPrompt, setOriginPrompt] = useState('');
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
 
   const videoEntryFromResult: VideoEntry | null = result ? {
     id: result.id,
@@ -57,6 +62,7 @@ const Index = () => {
     unmatchedIssues: [],
     status: 'complete',
     passed: true,
+    originPrompt: result.originPrompt, // Pass it through
   } : null;
 
   const handleFlagClick = useCallback((flag: Flag) => {
@@ -73,6 +79,8 @@ const Index = () => {
     durationSeconds: number;
     aspectRatio: '16:9' | '9:16' | '1:1';
     includeAudio: boolean;
+    strategy: 'creative' | 'similarity';
+    originalVideoUrl?: string;
   }) => {
     if (!result) return;
     regenerate(result.videoName, result.videoDuration, options);
@@ -92,7 +100,7 @@ const Index = () => {
         <div className="container flex items-center justify-between h-14 px-4">
           <div className="flex items-center gap-2">
             <Shield className="h-5 w-5 text-primary" />
-            <h1 className="text-lg font-bold tracking-tight text-foreground">AEGIS</h1>
+            <h1 className="text-lg font-bold tracking-tight text-foreground uppercase">GenAI</h1>
             <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest ml-1">Video Evaluator</span>
           </div>
           <div className="flex items-center gap-2">
@@ -135,7 +143,64 @@ const Index = () => {
               </div>
             </div>
 
-            <VideoDropzone onFileSelected={analyzeVideo} isAnalyzing={isAnalyzing} />
+            <div className="space-y-4">
+              {!pendingFile ? (
+                <VideoDropzone onFileSelected={setPendingFile} isAnalyzing={isAnalyzing} />
+              ) : (
+                <Card className="border-2 border-primary/20 bg-primary/5 p-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-3">
+                      <div className="rounded-full bg-primary/10 p-2">
+                        <Sparkles className="h-5 w-5 text-primary" />
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-semibold text-foreground">Add Generation Context</h3>
+                        <p className="text-xs text-muted-foreground">What prompt did you use to create this video?</p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Textarea
+                        id="origin-prompt"
+                        autoFocus
+                        placeholder="Paste the prompt used to generate this video... (Optional)"
+                        value={originPrompt}
+                        onChange={(e) => setOriginPrompt(e.target.value)}
+                        className="min-h-[120px] text-sm bg-background/50 focus-visible:ring-primary/30"
+                        disabled={isAnalyzing}
+                      />
+                      <p className="text-[10px] text-muted-foreground italic">
+                        Providing the original prompt helps the AI suggest much better fixes if issues are detected.
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2 pt-2">
+                      <Button 
+                        className="flex-1" 
+                        onClick={() => {
+                          analyzeVideo(pendingFile, originPrompt);
+                          setPendingFile(null);
+                        }}
+                        disabled={isAnalyzing}
+                      >
+                        {originPrompt.trim() ? 'Analyze with Prompt' : 'Skip & Analyze'}
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => {
+                          setPendingFile(null);
+                          setOriginPrompt('');
+                        }}
+                        disabled={isAnalyzing}
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                </Card>
+              )}
+            </div>
 
             {error && (
               <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">{error}</div>
@@ -223,6 +288,7 @@ const Index = () => {
               <div className="flex justify-center">
                 <CoherenceScore score={result.coherenceScore} />
               </div>
+              <ProcessingQueue agentResults={result.agents} isAnalyzing={false} frameProgress={100} />
               <MetadataPanel result={result} />
               <AgentSettings configs={agentConfigs} onChange={setAgentConfigs} disabled={true} />
             </div>

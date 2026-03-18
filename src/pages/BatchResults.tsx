@@ -11,7 +11,10 @@ import { IssueList } from '@/components/IssueList';
 import { VideoPlayer } from '@/components/VideoPlayer';
 import { Timeline } from '@/components/Timeline';
 import { RemediationOptions } from '@/components/RemediationOptions';
+import { RegeneratedResults } from '@/components/RegeneratedResults';
+import { useVideoRegeneration } from '@/hooks/useVideoRegeneration';
 import { BatchEvaluation } from '@/lib/batch-types';
+import { VeoModelKey } from '@/lib/veo';
 import { Flag } from '@/lib/types';
 
 interface BatchResultsProps {
@@ -25,6 +28,8 @@ const BatchResultsPage = ({ batch, onReset }: BatchResultsProps) => {
   const [currentTime, setCurrentTime] = useState(0);
   const [selectedFlagId, setSelectedFlagId] = useState<string>();
   const [showRemediation, setShowRemediation] = useState(false);
+  
+  const { regeneration, regenerate, resetRegeneration } = useVideoRegeneration();
 
   const selectedVideo = batch.videos.find(v => v.id === selectedVideoId);
 
@@ -34,6 +39,19 @@ const BatchResultsPage = ({ batch, onReset }: BatchResultsProps) => {
   const handleFlagClick = (flag: Flag) => {
     setSelectedFlagId(flag.id);
     setCurrentTime(flag.timestampSeconds);
+  };
+
+  const handleRegenerate = (options: {
+    prompt: string;
+    model: VeoModelKey;
+    durationSeconds: number;
+    aspectRatio: '16:9' | '9:16' | '1:1';
+    includeAudio: boolean;
+    strategy: 'creative' | 'similarity';
+    originalVideoUrl?: string;
+  }) => {
+    if (!selectedVideo) return;
+    regenerate(selectedVideo.name, selectedVideo.duration, options);
   };
 
   return (
@@ -133,8 +151,20 @@ const BatchResultsPage = ({ batch, onReset }: BatchResultsProps) => {
                     <RemediationOptions
                       video={selectedVideo}
                       onCut={() => {/* TODO: FFmpeg integration */}}
-                      onRegenerate={() => {/* Future: auto-regenerate */}}
+                      onRegenerate={handleRegenerate}
+                      isRegenerating={regeneration.status === 'generating' || regeneration.status === 'evaluating'}
+                      regenerationStatus={regeneration.statusMessage}
                     />
+
+                    {(regeneration.status === 'generating' || regeneration.status === 'evaluating' || regeneration.status === 'error' || regeneration.status === 'complete') && (
+                      <div className="mt-4">
+                        <RegeneratedResults
+                          regeneration={regeneration}
+                          originalScore={selectedVideo.coverage * 100} // Mapping coverage to score
+                          originalFlagCount={selectedVideo.detectedFlags.length}
+                        />
+                      </div>
+                    )}
                   </>
                 )}
               </>

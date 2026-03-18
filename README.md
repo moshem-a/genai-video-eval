@@ -1,21 +1,23 @@
-# AEGIS Video Evaluator
+# GenAI Video Evaluator
 
-AI-Generated Video Quality Analysis. Multi-agent evaluation powered by Google Gemini. Detects object permanence violations, physics errors, and temporal inconsistencies.
+
+High-fidelity quality assurance for AI-generated video. Multi-agent evaluation powered by Google Gemini (ADK Agents). Detects object permanence violations, physics errors, and temporal inconsistencies.
 
 ## Features
 
-- **Multi-Agent Evaluation**: Visionary, Critic, Executor, and Writer agents working together.
+- **ADK Multi-Agent Evaluation**: Specialized Physics, Object Permanence, and Temporal Consistency agents.
+- **Negative Bias Prompting**: Engineered to be professionally suspicious of AI artifacts.
+- **Prompt-to-Prompt Regeneration**: Analyzes failures to generate corrective prompts for Google Veo.
 - **Visual Artifact Detection**: Identifies flickering, morphing, and physical implausibility.
-- **Regeneration with Veo**: Integrated video generation to fix detected issues.
-- **Premium UI**: Modern, responsive dashboard with interactive charts and overlays.
+- **Premium UI**: Modern, responsive dashboard with interactive timelines and coherence scoring.
 
 ## Tech Stack
 
+- **Intelligence**: Google Gemini 1.5 Pro & 2.0 Flash
+- **Video Generation**: Google Veo 3.x
 - **Framework**: Vite + React + TypeScript
 - **Styling**: Tailwind CSS + shadcn/ui
 - **Icons**: Lucide React
-- **Evaluation**: Google Gemini API
-- **Generation**: Google Veo API
 
 ## Getting Started
 
@@ -29,7 +31,7 @@ AI-Generated Video Quality Analysis. Multi-agent evaluation powered by Google Ge
 1. Clone the repository:
    ```sh
    git clone <repository-url>
-   cd reality-check-engine
+   cd genai-video-evaluator
    ```
 
 2. Install dependencies:
@@ -38,12 +40,19 @@ AI-Generated Video Quality Analysis. Multi-agent evaluation powered by Google Ge
    ```
 
 3. Configure Environment:
-   Create a `.env` file or use the in-app settings (⚙️) to provide your Google Gemini API Key.
+   Use the in-app settings (⚙️) to provide your **Google Gemini API Key**.
 
 4. Start Development Server:
    ```sh
    npm run dev
    ```
+
+## Documentation
+
+For a deep dive into the architecture and ADK agent logic, see:
+- [Developer Guide (HTML)](./developer_guide.html)
+- [AI Engineering & Prompt Architecture](./ai_engineering_guide.html)
+- [Project Documentation (HTML)](./documentation.html)
 
 ## License
 
