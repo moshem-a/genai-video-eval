@@ -13,7 +13,7 @@ High-fidelity quality assurance for AI-generated video. Multi-agent evaluation p
 
 ## Tech Stack
 
-- **Intelligence**: Google Gemini 1.5 Pro & 2.0 Flash
+- **Intelligence**: Google Gemini 3.1 Pro Veo 
 - **Video Generation**: Google Veo 3.x
 - **Framework**: Vite + React + TypeScript
 - **Styling**: Tailwind CSS + shadcn/ui
@@ -52,7 +52,7 @@ High-fidelity quality assurance for AI-generated video. Multi-agent evaluation p
 For a deep dive into the architecture and ADK agent logic, see:
 - [Developer Guide (HTML)](./developer_guide.html)
 - [AI Engineering & Prompt Architecture](./ai_engineering_guide.html)
-- [Project Documentation (HTML)](./documentation.html)
+
 
 ## License
 
