@@ -9,10 +9,12 @@ RED='\033[0;31m'
 NC='\033[0m' # No Color
 
 # Absolute path to gcloud found on system
-GCLOUD_BIN=$(command -v gcloud || echo "gcloud")
+GCLOUD_BIN="/Users/moshem/gcloud --version/google-cloud-sdk/bin/gcloud"
+export CLOUDSDK_PYTHON="/usr/local/bin/python3.13"
 
 echo "------------------------------------------------"
 echo -e "${BLUE}🚀 Starting GenAI Video Evaluator Deployment to Cloud Run...${NC}"
+echo -e "${BLUE}🐍 Using Python: ${GREEN}$($CLOUDSDK_PYTHON --version)${NC}"
 echo "------------------------------------------------"
 
 # Check for gcloud

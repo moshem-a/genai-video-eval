@@ -53,26 +53,22 @@ export async function generateVideoWithVeo(options: VeoGenerateOptions): Promise
     prompt,
   };
 
-  // Add reference images as visual style control if provided
-  if (referenceImages && referenceImages.length > 0) {
-    // For Veo 3.x, visual consistency is often handled via a style reference
-    // We'll use the first reference image for maximum impact
-    // For Vertex AI, we must use camelCase for referenceImages and referenceType
-    // NOTE: referenceImages is only supported by Veo 3.1 (preview) on current Vertex AI.
-    // Including it for 3.0 or 2.0 causes a 400 error.
-    if (model === 'veo-3.1' && referenceImages && referenceImages.length > 0) {
-      const base64Data = referenceImages[0].includes(',') ? referenceImages[0].split(',')[1] : referenceImages[0];
-      
-      instance.referenceImages = [
-        {
-          image: {
-            bytesBase64Encoded: base64Data,
-          },
-          referenceType: "STYLE"
-        }
-      ];
+    // Add reference images if provided
+    if (referenceImages && referenceImages.length > 0) {
+      // NOTE: referenceImages is only supported by Veo 3.1 (preview) on current Vertex AI.
+      // Including it for 3.0 or 2.0 causes 400 errors in some environments.
+      if (model === 'veo-3.1') {
+        instance.referenceImages = referenceImages.map(img => {
+          const base64Data = img.includes(',') ? img.split(',')[1] : img;
+          return {
+            image: {
+              bytesBase64Encoded: base64Data,
+            },
+            referenceType: "asset"
+          };
+        });
+      }
     }
-  }
 
   const payload = {
     instances: [instance],

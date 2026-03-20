@@ -30,7 +30,7 @@ export function PromptEditorDialog({
   onOpenChange,
   initialPrompt,
   initialDuration,
-  initialModel = 'veo-3.0',
+  initialModel = 'veo-3.1',
   onRegenerate,
   isGenerating
 }: PromptEditorDialogProps) {
@@ -165,6 +165,15 @@ export function PromptEditorDialog({
                 </SelectContent>
               </Select>
             </div>
+
+            {strategy === 'similarity' && (
+              <div className="col-span-2 flex items-center gap-2 p-2 rounded border border-primary/20 bg-primary/5 text-[10px] text-primary">
+                <Clock className="h-3 w-3" />
+                <span>
+                  <b>Continuity Mode Active:</b> Auto-extracting frames from 0.0s, middle, and end to anchor the generation.
+                </span>
+              </div>
+            )}
 
             <div className="flex items-center justify-between p-3 rounded-lg border bg-muted/30">
               <div className="flex items-center gap-2">

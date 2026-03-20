@@ -1,59 +1,96 @@
-# GenAI Video Evaluator
+# Reality Check Engine 🚀
 
+**Autonomous Video Verification Loop solving the "Continuity Gap" in Generative Media with Multi-Agent Logic.**
 
-High-fidelity quality assurance for AI-generated video. Multi-agent evaluation powered by Google Gemini (ADK Agents). Detects object permanence violations, physics errors, and temporal inconsistencies.
+![Reality Check Dashboard](assets/dashboard.png)
 
-## Features
+## 👁️ Vision
 
-- **ADK Multi-Agent Evaluation**: Specialized Physics, Object Permanence, and Temporal Consistency agents.
-- **Negative Bias Prompting**: Engineered to be professionally suspicious of AI artifacts.
-- **Prompt-to-Prompt Regeneration**: Analyzes failures to generate corrective prompts for Google Veo.
-- **Visual Artifact Detection**: Identifies flickering, morphing, and physical implausibility.
-- **Premium UI**: Modern, responsive dashboard with interactive timelines and coherence scoring.
+Foundation models generate pixels, not physics. Commercial video projects currently suffer from high "re-roll" costs due to semantic hallucinations—melting appendages, lighting flicker, and background morphing. 
 
-## Tech Stack
+**Reality Check Engine** is a closed-loop system where specialized auditors (**Gemini 3.1 Pro**) critique the artist (**Veo 3.1**). It translates visual failures into quantitative prompt corrections, automating the QC loop and fixing errors in-flight.
 
-- **Intelligence**: Google Gemini 3.1 Pro Veo 
-- **Video Generation**: Google Veo 3.x
-- **Framework**: Vite + React + TypeScript
-- **Styling**: Tailwind CSS + shadcn/ui
-- **Icons**: Lucide React
+---
 
-## Getting Started
+## 🏗️ System Architecture
 
-### Prerequisites
+The engine implements a multi-agent "Forensic Audit" mesh that evaluates video frames against physical and temporal ground truths.
 
-- Node.js (v18+)
-- npm
+```mermaid
+graph LR
+    A[Video Input] --> B[Frame Extractor]
+    B --> C[ADK Agent Mesh]
+    
+    subgraph Agents ["ADK Agents (Gemini 3.1 Pro)"]
+        direction TB
+        C --> D[Physics Auditor]
+        C --> E[Object Permanence]
+        C --> F[Temporal Consistency]
+    end
+    
+    D --> G[Aggregator]
+    E --> G
+    F --> G
+    
+    G -- "Stability Score < 0.7" --> H[Remediation Logic]
+    G -- "Verified" --> I[Final Render]
+    
+    H --> J[High-Fidelity Prompting]
+    J --> K[Google Veo 3.1 Generate]
+    K -- "Feedback Loop" --> A
+```
 
-### Installation
+---
 
-1. Clone the repository:
-   ```sh
-   git clone <repository-url>
-   cd genai-video-evaluator
+## ✨ Key Features
+
+- **Multi-Agent Forensic Audit**: Categorized evaluation (Physics, Lighting, Morphology) using Gemini 3.1 Pro.
+- **Continuity Mode (Similarity Fix)**: Uses first, middle, and end frames as anchor assets to ensure regenerated videos stick to the original camera angle and subject.
+- **Ephemeral Security**: API keys are session-based (`sessionStorage`) and auto-expire after 1 hour, ensuring no sensitive data is saved permanently.
+- **Real-time Visualization**: Interactive dashboard showing coherence scores and time-coded alerts.
+
+---
+
+## 🛠️ Local Setup
+
+Follow these steps to deploy the auditor on your machine:
+
+1. **Clone the Repository**
+   ```bash
+   git clone https://github.com/moshem-a/genai-video-eval.git
+   cd genai-video-eval
    ```
 
-2. Install dependencies:
-   ```sh
+2. **Install Dependencies**
+   ```bash
    npm install
    ```
 
-3. Configure Environment:
-   Use the in-app settings (⚙️) to provide your **Google Gemini API Key**.
+3. **Configure Environment**
+   Create a `.env` file based on `.env.example`. 
+   *Note: In production, the system requires each user to provide their own Gemini API Key via the UI for session-based security.*
 
-4. Start Development Server:
-   ```sh
+4. **Launch Development Server**
+   ```bash
    npm run dev
    ```
+   The server will be available at `localhost:5173`.
 
-## Documentation
+5. **Deploy to Cloud Run (Optional)**
+   ```bash
+   ./deploy_gcp.sh
+   ```
 
-For a deep dive into the architecture and ADK agent logic, see:
-- [Developer Guide (HTML)](./developer_guide.html)
-- [AI Engineering & Prompt Architecture](./ai_engineering_guide.html)
+---
 
+## 🛡️ Technology Stack
 
-## License
+- **Core**: React + TypeScript + Vite
+- **AI Models**: Gemini 3.1 Pro (Audit), Google Veo 3.1 (Regeneration)
+- **Styling**: TailwindCSS + Framer Motion
+- **Deployment**: Google Cloud Run (Docker-based)
 
-MIT
+---
+
+## 👨‍💻 Author
+Created with ❤️ by **Moshe Mazuz**.

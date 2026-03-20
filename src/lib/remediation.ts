@@ -56,7 +56,8 @@ export async function generateRegenerationPrompt(
   videoName: string,
   flags: Flag[],
   videoDuration: number,
-  originPrompt?: string
+  originPrompt?: string,
+  hasReferenceImages: boolean = false
 ): Promise<string> {
   const apiKey = getStoredApiKey();
   if (!apiKey) {
@@ -79,6 +80,15 @@ Detected issues by AI Evaluation Agents:
 ${flags.map(f => `- [${f.category}] At ${f.timestamp} (${f.severity}): ${f.description}`).join('\n')}
 
 Generate a professional, highly detailed prompt for Google Veo 2 or Veo 3 that will fix the issues identified above.
+
+${hasReferenceImages 
+  ? `IMPORTANT: The model will be provided with keyframes from the start, middle, and end of the original video as visual assets. 
+Ensure the generated prompt strictly instructs the video model to:
+1. Maintain the EXACT camera angle, framing, and vantage point seen in the reference images (e.g., if it is a high-angle security camera or wide-angle shot, explicitly specify this).
+2. Keep the subject appearance, clothing, scene layout, and lighting identical to the references.
+3. Explicitly describe the lens/distortion if present (e.g., "wide angle security camera perspective").
+4. Focus only on fixing the motion and temporal quality issues while staying visually anchored to the source.`
+  : ''}
 
 ${originPrompt 
   ? `Analyze the original prompt to understand the user's intent. Identify which specific parts of the prompt might have led to these failures or were too vague. Suggest an improved prompt that:
