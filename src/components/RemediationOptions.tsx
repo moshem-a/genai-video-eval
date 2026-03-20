@@ -44,7 +44,7 @@ export function RemediationOptions({ video, onCut, onRegenerate, isRegenerating,
     // The prompt will be generated inside the dialog or we can trigger it now
     if (!initialPrompt) {
       setIsPreparingPrompt(true);
-      generateRegenerationPrompt(video.name, video.detectedFlags, video.duration, video.originPrompt)
+      generateRegenerationPrompt(video.name, video.detectedFlags, video.duration, video.originPrompt, true)
         .then(setInitialPrompt)
         .finally(() => setIsPreparingPrompt(false));
     }

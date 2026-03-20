@@ -11,19 +11,42 @@ export const GEMINI_MODELS = [
 
 export type GeminiModelId = typeof GEMINI_MODELS[number]['id'];
 
-const STORAGE_KEY_API = 'aegis_gemini_api_key';
+const STORAGE_KEY_API = 'aegis_gemini_api_key_session';
 const STORAGE_KEY_MODEL = 'aegis_gemini_model';
+const API_EXPIRY_MS = 3600000; // 1 hour
+
+interface StoredApiKey {
+  key: string;
+  expiry: number;
+}
 
 export function getStoredApiKey(): string {
-  return localStorage.getItem(STORAGE_KEY_API) || import.meta.env.VITE_GEMINI_API_KEY || '';
+  try {
+    const raw = sessionStorage.getItem(STORAGE_KEY_API);
+    if (!raw) return '';
+    
+    const data = JSON.parse(raw) as StoredApiKey;
+    if (Date.now() > data.expiry) {
+      sessionStorage.removeItem(STORAGE_KEY_API);
+      return '';
+    }
+    
+    return data.key;
+  } catch (e) {
+    return '';
+  }
 }
 
 export function setStoredApiKey(key: string) {
-  localStorage.setItem(STORAGE_KEY_API, key);
+  const data: StoredApiKey = {
+    key,
+    expiry: Date.now() + API_EXPIRY_MS
+  };
+  sessionStorage.setItem(STORAGE_KEY_API, JSON.stringify(data));
 }
 
 export function getStoredModel(): GeminiModelId {
-  return (localStorage.getItem(STORAGE_KEY_MODEL) as GeminiModelId) || 'gemini-1.5-pro';
+  return (localStorage.getItem(STORAGE_KEY_MODEL) as GeminiModelId) || 'gemini-3.1-pro-preview';
 }
 
 export function setStoredModel(model: GeminiModelId) {

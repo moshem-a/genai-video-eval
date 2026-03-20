@@ -32,7 +32,7 @@ export function ApiKeyDialog({ open, onOpenChange, onSave }: ApiKeyDialogProps) 
             Gemini API Configuration
           </DialogTitle>
           <DialogDescription>
-            Enter your Google Gemini API key and select a model. Your key is stored locally in your browser.
+            Enter your Google Gemini API key and select a model. Your key is temporary and will be cleared after 1 hour or when you close the tab.
           </DialogDescription>
         </DialogHeader>
 
