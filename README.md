@@ -93,4 +93,4 @@ Follow these steps to deploy the auditor on your machine:
 ---
 
 ## 👨‍💻 Author
-Created with ❤️ by **Moshe Mazuz**.
+Created with  by **Moshe Mazuz**.
