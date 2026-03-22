@@ -17,6 +17,7 @@ interface VeoGenerateOptions {
   aspectRatio?: '16:9' | '9:16' | '1:1';
   durationSeconds?: number;
   includeAudio?: boolean;
+  inputImageBase64?: string; // Base64 encoded image for image-to-video
   referenceImages?: string[]; // Array of base64 strings
   onStatusUpdate?: (status: string) => void;
 }
@@ -42,6 +43,7 @@ export async function generateVideoWithVeo(options: VeoGenerateOptions): Promise
     aspectRatio = '16:9',
     durationSeconds = 5,
     includeAudio = true,
+    inputImageBase64,
     referenceImages,
     onStatusUpdate,
   } = options;
@@ -53,16 +55,44 @@ export async function generateVideoWithVeo(options: VeoGenerateOptions): Promise
     prompt,
   };
 
+  // Add initial base image for Image-to-Video generation if provided
+  if (inputImageBase64) {
+    let mimeType = "image/jpeg";
+    let baseData = inputImageBase64;
+
+    if (inputImageBase64.includes(',')) {
+      const parts = inputImageBase64.split(',');
+      const match = parts[0].match(/:(.*?);/);
+      if (match) mimeType = match[1];
+      baseData = parts[1];
+    }
+
+    instance.image = {
+      bytesBase64Encoded: baseData,
+      mimeType: mimeType
+    };
+  }
+
     // Add reference images if provided
     if (referenceImages && referenceImages.length > 0) {
       // NOTE: referenceImages is only supported by Veo 3.1 (preview) on current Vertex AI.
       // Including it for 3.0 or 2.0 causes 400 errors in some environments.
       if (model === 'veo-3.1') {
         instance.referenceImages = referenceImages.map(img => {
-          const base64Data = img.includes(',') ? img.split(',')[1] : img;
+          let mimeType = "image/jpeg";
+          let base64Data = img;
+
+          if (img.includes(',')) {
+            const parts = img.split(',');
+            const match = parts[0].match(/:(.*?);/);
+            if (match) mimeType = match[1];
+            base64Data = parts[1];
+          }
+
           return {
             image: {
               bytesBase64Encoded: base64Data,
+              mimeType: mimeType
             },
             referenceType: "asset"
           };
@@ -178,6 +208,13 @@ async function pollOperation(
 
       if (!generatedVideos || (Array.isArray(generatedVideos) && generatedVideos.length === 0)) {
         console.error('No video found in Veo success response:', JSON.stringify(pollData));
+
+        // Check if blocked by Responsible AI filters
+        const raiReasons = response.generateVideoResponse?.raiMediaFilteredReasons;
+        if (response.generateVideoResponse?.raiMediaFilteredCount > 0 && Array.isArray(raiReasons)) {
+          throw new Error(`Generation blocked by safety filters: ${raiReasons.join(', ')}`);
+        }
+
         throw new Error('Video generation completed but no video was returned. Please try a different prompt or model.');
       }
 

@@ -37,11 +37,12 @@ export function useVideoRegeneration() {
       durationSeconds: number;
       aspectRatio: '16:9' | '9:16' | '1:1';
       includeAudio: boolean;
+      inputImageBase64?: string;
       strategy?: 'creative' | 'similarity';
       originalVideoUrl?: string;
     }
   ) => {
-    const { prompt, model, durationSeconds, aspectRatio, includeAudio, strategy = 'creative', originalVideoUrl } = options;
+    const { prompt, model, durationSeconds, aspectRatio, includeAudio, inputImageBase64, strategy = 'creative', originalVideoUrl } = options;
     setRegeneration(prev => ({
       ...prev,
       status: 'generating',
@@ -75,6 +76,7 @@ export function useVideoRegeneration() {
         aspectRatio,
         durationSeconds,
         includeAudio,
+        inputImageBase64,
         referenceImages,
         onStatusUpdate: (statusMessage) => {
           setRegeneration(prev => ({ ...prev, statusMessage }));
