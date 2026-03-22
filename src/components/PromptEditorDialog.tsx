@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { VeoModelKey, VEO_MODELS } from '@/lib/veo';
-import { Sparkles, Loader2, Music, Clock, Maximize } from 'lucide-react';
+import { Sparkles, Loader2, Music, Clock, Maximize, Image as ImageIcon, X } from 'lucide-react';
 
 interface PromptEditorDialogProps {
   open: boolean;
@@ -20,6 +20,7 @@ interface PromptEditorDialogProps {
     durationSeconds: number;
     aspectRatio: '16:9' | '9:16' | '1:1';
     includeAudio: boolean;
+    inputImageBase64?: string;
     strategy: 'creative' | 'similarity';
   }) => void;
   isGenerating: boolean;
@@ -40,6 +41,8 @@ export function PromptEditorDialog({
   const [aspectRatio, setAspectRatio] = useState<'16:9' | '9:16' | '1:1'>('16:9');
   const [includeAudio, setIncludeAudio] = useState(false);
   const [strategy, setStrategy] = useState<'creative' | 'similarity'>('similarity');
+  const [inputImageBase64, setInputImageBase64] = useState<string | undefined>();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (open) {
@@ -55,8 +58,28 @@ export function PromptEditorDialog({
       durationSeconds: duration,
       aspectRatio,
       includeAudio,
+      inputImageBase64,
       strategy,
     });
+  };
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const base64 = event.target?.result as string;
+      setInputImageBase64(base64);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const clearImage = () => {
+    setInputImageBase64(undefined);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
   };
 
   return (
@@ -87,10 +110,52 @@ export function PromptEditorDialog({
                   value={prompt}
                   onChange={(e) => setPrompt(e.target.value)}
                   placeholder="Enter instructions for video regeneration..."
-                  className="min-h-[150px] text-sm resize-none font-sans"
+                  className="min-h-[120px] text-sm resize-none font-sans"
                 />
-                <p className="text-[10px] text-muted-foreground">
-                  Pro-tip: Describe the scene clearly and specify what to avoid.
+
+                {/* Image Upload for Image-to-Video */}
+                <div className="flex items-center gap-4 mt-2">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    ref={fileInputRef}
+                    onChange={handleImageUpload}
+                  />
+                  {!inputImageBase64 ? (
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => fileInputRef.current?.click()}
+                      className="text-xs flex items-center gap-2"
+                    >
+                      <ImageIcon className="h-4 w-4" />
+                      Add Starting Image
+                    </Button>
+                  ) : (
+                    <div className="relative group">
+                      <div className="h-20 w-32 rounded-md border flex items-center justify-center overflow-hidden bg-black object-cover relative">
+                        <img 
+                          src={inputImageBase64} 
+                          alt="Starting reference" 
+                          className="h-full w-full object-cover opacity-80" 
+                        />
+                        <Button 
+                          variant="destructive" 
+                          size="icon" 
+                          className="absolute h-6 w-6 top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={clearImage}
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                      <span className="text-[10px] text-muted-foreground mt-1 absolute -bottom-4 truncate w-full flex justify-center">Image Attached</span>
+                    </div>
+                  )}
+                </div>
+
+                <p className="text-[10px] text-muted-foreground mt-4">
+                  Pro-tip: Describe the scene clearly and specify what to avoid. If an image is added, Veo 3 will use it as the first frame.
                 </p>
               </>
             )}
