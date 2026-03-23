@@ -9,38 +9,34 @@ RED='\033[0;31m'
 NC='\033[0m' # No Color
 
 # Absolute path to gcloud found on system
-GCLOUD_BIN="gcloud"
+GCLOUD_BIN="/Users/moshem/gcloud --version/google-cloud-sdk/bin/gcloud"
 export CLOUDSDK_PYTHON="/usr/local/bin/python3.13"
 
 echo "------------------------------------------------"
 echo -e "${BLUE}🚀 Starting Full-Stack ADK Deployment to Cloud Run...${NC}"
+echo -e "${BLUE}🐍 Using Python: ${GREEN}$($CLOUDSDK_PYTHON --version)${NC}"
 echo "------------------------------------------------"
 
 # Check for gcloud
-if ! command -v gcloud &> /dev/null; then
-    echo -e "${RED}❌ Error: gcloud CLI not found.${NC}"
+if [ ! -f "$GCLOUD_BIN" ]; then
+    echo -e "${RED}❌ Error: gcloud CLI not found at $GCLOUD_BIN.${NC}"
     exit 1
 fi
 
-# Get current project
-PROJECT_ID=$(gcloud config get-value project 2>/dev/null)
-if [ -z "$PROJECT_ID" ]; then
-  echo -e "${RED}❌ Error: No Google Cloud project is configured.${NC}"
-  exit 1
-fi
-
+# Hardcoded project ID found on system
+PROJECT_ID="gen-lang-client-0535468580"
 echo -e "${BLUE}📦 Using Project: ${GREEN}$PROJECT_ID${NC}"
 
 # Ensure necessary APIs are enabled
 echo -e "${BLUE}🔧 Ensuring necessary APIs are enabled...${NC}"
-gcloud services enable run.googleapis.com artifactregistry.googleapis.com cloudbuild.googleapis.com aiplatform.googleapis.com --quiet
+"$GCLOUD_BIN" services enable run.googleapis.com artifactregistry.googleapis.com cloudbuild.googleapis.com aiplatform.googleapis.com --quiet --project "$PROJECT_ID"
 
 # Check for AGENT_ENGINE_ID
 if [ -z "$AGENT_ENGINE_ID" ]; then
   echo -e "${RED}⚠️  Warning: AGENT_ENGINE_ID environment variable is not set.${NC}"
   echo -e "${BLUE}Attempting to find a deployed Reasoning Engine...${NC}"
   # We try to get the most recent reasoning engine, but this might fail if gcloud beta is not installed
-  FOUND_ID=$(gcloud beta ai reasoning-engines list --region us-central1 --format="value(name)" --limit=1 2>/dev/null)
+  FOUND_ID=$("$GCLOUD_BIN" beta ai reasoning-engines list --region us-central1 --format="value(name)" --limit=1 2>/dev/null)
   if [ -n "$FOUND_ID" ]; then
     AGENT_ENGINE_ID=$FOUND_ID
     echo -e "${GREEN}✅ Found Agent Engine: $AGENT_ENGINE_ID${NC}"
@@ -53,7 +49,7 @@ fi
 
 # Deploy to Cloud Run
 echo -e "${BLUE}🏗️  Building and deploying Full-Stack app (FastAPI + React)...${NC}"
-gcloud run deploy genai-video-eval \
+"$GCLOUD_BIN" run deploy genai-video-eval \
   --source . \
   --region us-central1 \
   --allow-unauthenticated \
@@ -65,7 +61,7 @@ gcloud run deploy genai-video-eval \
 if [ $? -eq 0 ]; then
   echo "------------------------------------------------"
   echo -e "${GREEN}✅ Deployment successful!${NC}"
-  echo -e "${BLUE}📍 Service URL: ${NC}$(gcloud run services describe genai-video-eval --region us-central1 --format='value(status.url)')"
+  echo -e "${BLUE}📍 Service URL: ${NC}$("$GCLOUD_BIN" run services describe genai-video-eval --region us-central1 --format='value(status.url)')"
   echo "------------------------------------------------"
 else
   echo -e "${RED}❌ Deployment failed. Check the logs above.${NC}"
