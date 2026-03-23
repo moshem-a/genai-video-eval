@@ -15,30 +15,9 @@ Foundation models generate pixels, not physics. Commercial video projects curren
 ## 🏗️ System Architecture
 
 The engine implements a multi-agent "Forensic Audit" mesh that evaluates video frames against physical and temporal ground truths.
+<img width="2048" height="1089" alt="Google Cloud Platiorm" src="https://github.com/user-attachments/assets/987bfade-0cd6-4a29-9fdc-fdbfa522f11e" />
 
-```mermaid
-graph LR
-    A[Video Input] --> B[Frame Extractor]
-    B --> C[ADK Agent Mesh]
-    
-    subgraph Agents ["ADK Agents (Gemini 3.1 Pro)"]
-        direction TB
-        C --> D[Physics Auditor]
-        C --> E[Object Permanence]
-        C --> F[Temporal Consistency]
-    end
-    
-    D --> G[Aggregator]
-    E --> G
-    F --> G
-    
-    G -- "Stability Score < 0.7" --> H[Remediation Logic]
-    G -- "Verified" --> I[Final Render]
-    
-    H --> J[High-Fidelity Prompting]
-    J --> K[Google Veo 3.1 Generate]
-    K -- "Feedback Loop" --> A
-```
+
 
 ---
 
@@ -92,5 +71,4 @@ Follow these steps to deploy the auditor on your machine:
 
 ---
 
-## 👨‍💻 Author
-Created with  by **Moshe Mazuz**.
+## 👨‍💻 Author:  **Moshe Mazuz**
