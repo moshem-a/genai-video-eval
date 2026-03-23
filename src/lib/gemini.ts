@@ -117,11 +117,12 @@ async function executeAgentCall(
     };
   });
 
+  const isImage = Math.round(videoDuration) === 0 && frames.length === 1;
+
   const result = await model.generateContent([
-    `CRITICAL ANALYSIS TASK: Analyze these ${frames.length} sequential video frames for issues. 
-    NOTE: This is an AI-generated video and is EXPECTED to have subtle artifacts, hallucinations, or physical inconsistencies. 
-    BE HIGHLY CRITICAL. Flag any issues you detect, no matter how subtle.
-    Frame numbers correspond to evenly-spaced timestamps across the video duration of ${Math.round(videoDuration)} seconds.`,
+    `CRITICAL ANALYSIS TASK: Analyze ${isImage ? 'this image' : `these ${frames.length} sequential video frames`} for issues. 
+    NOTE: This is AI-generated media. CRITICAL REQUIREMENT: To strictly reduce false positives, you must ONLY flag SIGNIFICANT, CRITICAL problems (e.g. massive physical impossibilities, severe hallucinations, major missing limbs). DO NOT flag minor, subtle glitches or stylistic choices. If the issue is not glaringly obvious, ignore it.
+    ${isImage ? 'This is a single static image, not a video.' : `Frame numbers correspond to evenly-spaced timestamps across the video duration of ${Math.round(videoDuration)} seconds.`}`,
     ...imageParts,
   ]);
 
