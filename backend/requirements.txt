@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+pydantic
+vertexai
+google-cloud-aiplatform>=1.70.0
+google-genai>=1.0.0
+google-adk
+python-multipart
+aiohttp
