@@ -97,37 +97,6 @@ export function useBatchEvaluation() {
     setIsProcessing(false);
   }, [items]);
 
-  const generateSweepingFix = useCallback(async () => {
-    // Collect all flags across all videos
-    const allIssues = items
-      .filter(i => i.originalResult)
-      .flatMap(i => i.originalResult!.flags.map(f => `Video ${i.file.name}: [${f.severity}] ${f.description}`));
-
-    if (allIssues.length === 0) return null;
-
-    setIsProcessing(true);
-    try {
-      const genAI = new GoogleGenerativeAI(getStoredApiKey()!);
-      const model = genAI.getGenerativeModel({ model: getStoredModel() });
-      
-      const prompt = `You are a universal Prompt Architect. 
-      I have a batch of AI-generated videos that all share common severe flaws.
-      Here are the critical issues detected across the batch:
-      ${allIssues.join('\n')}
-      
-      Identify the overarching trend (e.g. "always messes up hands", "lighting is flat").
-      Provide a single, powerful "Negative Prompt" or "Positive Guidance" instruction (max 1-2 sentences) that we can append to ALL video generation requests to fix this across the board natively in Veo. DO NOT wrap the output in quotes. Just output the raw instruction.`;
-
-      const res = await model.generateContent(prompt);
-      const fix = res.response.text().trim();
-      setGlobalFixPrompt(fix);
-      return fix;
-    } catch (e) {
-      console.error(e);
-      return null;
-    } finally {
-      setIsProcessing(false);
-    }
   const generateBatchInsights = useCallback(async () => {
     const allIssues = items
       .filter(i => i.originalResult)

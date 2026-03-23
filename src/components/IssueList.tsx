@@ -64,6 +64,7 @@ export function IssueList({ flags, selectedFlagId, onFlagClick, onConfirm, onDis
         />
       ))}
     </div>
+    </div>
   );
 
   if (compact) return content;
