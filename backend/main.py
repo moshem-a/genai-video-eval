@@ -22,7 +22,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Configuration
-PROJECT_ID = os.getenv("GCP_PROJECT", "YOUR_PROJECT_ID")
+PROJECT_ID = os.getenv("GCP_PROJECT", "agentic-system-488914")
 REGION = os.getenv("GCP_REGION", "us-central1")
 AGENT_ENGINE_ID = os.getenv("AGENT_ENGINE_ID") # e.g. 'projects/.../locations/.../reasoningEngines/...'
 
