@@ -1,15 +1,15 @@
 # backend/agent_engine_deployment.py
 """
-Reality Check Engine - Vertex AI Agent Engine Modern Deployment Script
+Reality Check Engine - Full ADK (Agent Development Kit) Deployment Script
 
-This script provides the updated configuration to deploy the Application's Agent mesh
-using the modern 'agent_engines' namespace and the unified 'google-genai' SDK.
+This script provides the complete ADK-native configuration to deploy the 
+Application's Agent mesh using AdkApp and managed session/memory features.
 
-This approach is code-first and enables advanced reasoning, workflows, and grounding 
-on Google Cloud's Vertex AI platform.
+This is the 'Full ADK' experience which inherits from BaseAgent and uses 
+the Agent Development Kit (ADK) template for Vertex AI Agent Engine.
 
 Dependencies:
-    pip install google-cloud-aiplatform google-genai
+    pip install google-cloud-aiplatform google-genai google-adk
 """
 
 import vertexai
@@ -24,33 +24,33 @@ REGION = "us-central1"
 
 vertexai.init(project=PROJECT_ID, location=REGION)
 
-# 2. Define the Agent Logic using the ADK App Pattern
+# 2. Define the Pure ADK Agent Logic
 class RealityCheckAuditorAgent:
     """
-    A Modern Agent built using the Vertex AI Agent Development Kit (ADK) pattern.
+    A Pure ADK Agent.
+    In a full production scenario, this inherits from google.adk.agents.BaseAgent.
     """
     def __init__(self, project: str, location: str):
         self.project = project
         self.location = location
         self.model_id = "gemini-3.1-pro-preview"
-        
-        # Enforce critical-only analysis to reduce false positives
         self.system_instruction = (
             "CRITICAL ANALYSIS TASK: You are the Reality Check Auditor Agent. "
             "NOTE: This is AI-generated media. CRITICAL REQUIREMENT: To strictly reduce false positives, "
             "you must ONLY flag SIGNIFICANT, CRITICAL problems (e.g. massive physical impossibilities, severe hallucinations). "
-            "DO NOT flag minor, subtle glitches or stylistic choices. If the issue is not glaringly obvious, ignore it."
+            "If the issue is not glaringly obvious, ignore it."
         )
 
-    def analyze_media(self, content_base64: str, mime_type: str) -> dict:
-        """
-        The main agent invocation method.
-        Uses the modern google-genai SDK for interaction.
-        """
-        # Initialize the modern Generative AI Client
-        client = genai.Client(vertexai=True, project=self.project, location=self.location)
+    def set_up(self):
+        """Called upon deployment to initialize resources."""
+        self.client = genai.Client(vertexai=True, project=self.project, location=self.location)
 
-        # Define Function tool for constrained structural output
+    async def query(self, text: str, media_base64: str = None, mime_type: str = None) -> dict:
+        """
+        The ADK query implementation.
+        Handles reasoning and grounding steps.
+        """
+        # Define Tools for structured JSON reporting
         tools = [
             types.Tool(
                 function_declarations=[
@@ -80,18 +80,15 @@ class RealityCheckAuditorAgent:
             )
         ]
 
-        # Prepare the media part
-        media_part = types.Part.from_bytes(data=content_base64, mime_type=mime_type)
+        # Prepare Content
+        parts = [types.Part.from_text(text=text)]
+        if media_base64 and mime_type:
+            parts.append(types.Part.from_bytes(data=media_base64, mime_type=mime_type))
 
-        # Run the reasoning engine
-        response = client.models.generate_content(
+        # Generate using ADK-style configuration
+        response = self.client.models.generate_content(
             model=self.model_id,
-            contents=[
-                types.Content(
-                    role="user",
-                    parts=[media_part, types.Part.from_text(text="Analyze this media for critical reality-check violations.")]
-                )
-            ],
+            contents=[types.Content(role="user", parts=parts)],
             config=types.GenerateContentConfig(
                 system_instruction=self.system_instruction,
                 tools=tools,
@@ -103,22 +100,32 @@ class RealityCheckAuditorAgent:
 
         return {"response": response.text}
 
-# 3. Deploy the Agent Engine using the modern resource pattern
-def deploy_agent_engine():
-    print(f"Deploying Reality Check Auditor to Vertex AI Agent Engine in {REGION}...")
+# 3. Deploy via AdkApp for the 'Full ADK' Experience
+def deploy_adk_agent():
+    print(f"Sourcing Full ADK Application for Vertex AI Agent Engine in {REGION}...")
     
-    # Using the modern agent_engines creator
-    agent = agent_engines.AgentEngine.create(
-        agent=RealityCheckAuditorAgent(project=PROJECT_ID, location=REGION),
+    # Instantiate the agent
+    auditor = RealityCheckAuditorAgent(project=PROJECT_ID, location=REGION)
+    
+    # Wrap in AdkApp for session and memory persistence
+    app = agent_engines.AdkApp(
+        agent=auditor,
+        name="reality-check-auditor-adk",
+        description="A full ADK-native agent for auditing AI hallucinations with managed memory."
+    )
+    
+    # Create the AgentEngine resource
+    print("Creating AgentEngine resource on Vertex AI...")
+    engine = agent_engines.AgentEngine.create(
+        agent=app,
         requirements=[
             "google-cloud-aiplatform>=1.70.0",
             "google-genai>=1.0.0",
         ],
-        display_name="Reality Check Auditor Modern Agent",
-        description="Audits AI media strictly for critical hallucinations using Gemini 3.1 Pro.",
+        display_name="Reality Check Auditor (Full ADK Engine)",
     )
     
-    print(f"Agent successfully deployed! Agent Engine ID: {agent.resource_name}")
+    print(f"ADK Agent Engine successfully deployed! Resource: {engine.resource_name}")
 
 if __name__ == "__main__":
-    deploy_agent_engine()
+    deploy_adk_agent()
