@@ -92,54 +92,83 @@ export function useVideoAnalysis(): UseVideoAnalysisReturn {
         throw new Error('No frames could be extracted from the video');
       }
 
-      // Step 2: Run agents in parallel
+      // Step 2: Run agents in parallel (NOW PROXIED VIA ADK BACKEND)
       setProgress(30);
       const videoUrl = URL.createObjectURL(file);
 
-      // Update all to running
+      // We send one request to the ADK backend which orchestrates the agents
       setAgentResults(prev => prev.map(r => ({ ...r, status: 'running' as const })));
+      
+      try {
+        const response = await fetch('/api/analyze', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            media_base64: frames[0], // Sending the first frame or the image
+            mime_type: file.type,
+            text: originPrompt || "Analyze this media for critical reality-check violations."
+          })
+        });
 
-      const agentPromises = enabledAgents.map(async (config, idx) => {
-        try {
-          const flags = await runAgent(config, frames, duration);
-          const agentResult: AgentResult = { agent: config.type, flags, status: 'complete' };
-          setAgentResults(prev => prev.map(r => r.agent === config.type ? agentResult : r));
-          setProgress(30 + ((idx + 1) / enabledAgents.length) * 60);
-          return agentResult;
-        } catch (e) {
-          const agentResult: AgentResult = {
-            agent: config.type,
-            flags: [],
-            status: 'error',
-            error: e instanceof Error ? e.message : 'Unknown error',
-          };
-          setAgentResults(prev => prev.map(r => r.agent === config.type ? agentResult : r));
-          return agentResult;
+        if (!response.ok) {
+          const errData = await response.json();
+          throw new Error(errData.detail || 'Backend analysis failed');
         }
-      });
 
-      const results = await Promise.all(agentPromises);
-      const allFlags = results.flatMap(r => r.flags).sort((a, b) => a.timestampSeconds - b.timestampSeconds);
-      const coherenceScore = computeCoherenceScore(allFlags);
+        const data = await response.json();
+        // The backend returns a structured response from the ADK Agent
+        // We need to parse this into our local State structure
+        
+        let parsedFlags: Flag[] = [];
+        try {
+          // Expecting format: {"response": "{\"flags\": [...]}"} or similar structured text
+          const rawResponse = data.response;
+          const jsonMatch = rawResponse.match(/\{[\s\S]*\}/);
+          if (jsonMatch) {
+             const parsed = JSON.parse(jsonMatch[0]);
+             if (parsed.flags) {
+               parsedFlags = parsed.flags.map((f: any, idx: number) => ({
+                 id: `flag-${Date.now()}-${idx}`,
+                 timestampSeconds: 0,
+                 severity: f.severity || 'critical',
+                 description: f.description,
+                 category: 'visual_artifact',
+                 confidence: f.confidence || 0.9,
+                 confirmed: false,
+                 dismissed: false
+               }));
+             }
+          }
+        } catch (e) {
+          console.error("Failed to parse ADK response:", e);
+          throw new Error("Invalid response format from ADK Agent");
+        }
 
-      // Check if all agents failed
-      const errorCount = results.filter(r => r.status === 'error').length;
-      if (errorCount > 0 && errorCount === enabledAgents.length) {
-        throw new Error('All evaluation agents failed to complete. Please check your API key and connection.');
+        const coherenceScore = computeCoherenceScore(parsedFlags);
+        
+        // Map back to agent results (since we used a unified agent engine)
+        const results: AgentResult[] = enabledAgents.map(a => ({
+          agent: a.type,
+          flags: parsedFlags.filter(f => f.category === a.type || a.type === 'auditor'),
+          status: 'complete'
+        }));
+
+        setAgentResults(results);
+        setProgress(100);
+        setResult({
+          id: Date.now().toString(),
+          videoName: file.name,
+          videoUrl,
+          videoDuration: duration,
+          createdAt: new Date(),
+          coherenceScore,
+          agents: results,
+          flags: parsedFlags,
+          originPrompt,
+        });
+      } catch (e) {
+        throw e;
       }
-
-      setProgress(100);
-      setResult({
-        id: Date.now().toString(),
-        videoName: file.name,
-        videoUrl,
-        videoDuration: duration,
-        createdAt: new Date(),
-        coherenceScore,
-        agents: results,
-        flags: allFlags,
-        originPrompt,
-      });
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Analysis failed');
     } finally {
