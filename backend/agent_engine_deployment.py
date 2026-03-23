@@ -1,19 +1,21 @@
 # backend/agent_engine_deployment.py
 """
-Reality Check Engine - Vertex AI Agent Engine Deployment Script
+Reality Check Engine - Vertex AI Agent Engine Modern Deployment Script
 
-This script provides the necessary configuration to deploy the Application's Agent mesh
-directly to Google Cloud Vertex AI Reasoning Engine (Agent Engine).
-By deploying your Python custom agent, you can host the logic entirely on Cloud
-rather than processing the API calls from your frontend React application.
+This script provides the updated configuration to deploy the Application's Agent mesh
+using the modern 'agent_engines' namespace and the unified 'google-genai' SDK.
+
+This approach is code-first and enables advanced reasoning, workflows, and grounding 
+on Google Cloud's Vertex AI platform.
 
 Dependencies:
-    pip install google-cloud-aiplatform langchain-google-vertexai
+    pip install google-cloud-aiplatform google-genai
 """
 
 import vertexai
-from vertexai.preview import reasoning_engines
-from langchain_google_vertexai import HarmCategory, HarmBlockThreshold
+from vertexai import agent_engines
+from google import genai
+from google.genai import types
 
 # 1. Initialize Vertex AI
 # Replace with your actual Google Cloud Project ID and Region
@@ -22,96 +24,101 @@ REGION = "us-central1"
 
 vertexai.init(project=PROJECT_ID, location=REGION)
 
-# 2. Define the Agent Logic
+# 2. Define the Agent Logic using the ADK App Pattern
 class RealityCheckAuditorAgent:
     """
-    A Langchain-on-Vertex (Agent Engine) Application defining the Reality Check Auditor.
+    A Modern Agent built using the Vertex AI Agent Development Kit (ADK) pattern.
     """
     def __init__(self, project: str, location: str):
         self.project = project
         self.location = location
-
-    def set_up(self):
-        """Called upon deployment to initialize the model."""
-        import google.generativeai as genai
-        # Initialize the actual Vertex Gemini Model inside the cloud environment
+        self.model_id = "gemini-3.1-pro-preview"
         
-        # We enforce critical-only analysis to reduce false positives
-        self._system_instruction = (
+        # Enforce critical-only analysis to reduce false positives
+        self.system_instruction = (
             "CRITICAL ANALYSIS TASK: You are the Reality Check Auditor Agent. "
             "NOTE: This is AI-generated media. CRITICAL REQUIREMENT: To strictly reduce false positives, "
             "you must ONLY flag SIGNIFICANT, CRITICAL problems (e.g. massive physical impossibilities, severe hallucinations). "
             "DO NOT flag minor, subtle glitches or stylistic choices. If the issue is not glaringly obvious, ignore it."
         )
 
-    def analyze_media(self, content_base64: str, mime_type: str, is_video: bool) -> dict:
+    def analyze_media(self, content_base64: str, mime_type: str) -> dict:
         """
         The main agent invocation method.
-        Accepts a base64 encoded media (Image or extracted Video Frame sequence)
-        and critiques its coherence.
+        Uses the modern google-genai SDK for interaction.
         """
-        from vertexai.generative_models import GenerativeModel, Part, Tool, FunctionDeclaration
+        # Initialize the modern Generative AI Client
+        client = genai.Client(vertexai=True, project=self.project, location=self.location)
 
-        # Construct Function tools to enforce structured JSON output for flags
-        report_tool = Tool(
-            function_declarations=[
-                FunctionDeclaration(
-                    name="report_issues",
-                    description="Report detected critical violations in the media.",
-                    parameters={
-                        "type": "OBJECT",
-                        "properties": {
-                            "flags": {
-                                "type": "ARRAY",
-                                "items": {
-                                    "type": "OBJECT",
-                                    "properties": {
-                                        "severity": {"type": "STRING", "description": "critical"},
-                                        "description": {"type": "STRING", "description": "What is wrong?"},
-                                        "confidence": {"type": "NUMBER"}
-                                    },
-                                    "required": ["severity", "description", "confidence"]
+        # Define Function tool for constrained structural output
+        tools = [
+            types.Tool(
+                function_declarations=[
+                    types.FunctionDeclaration(
+                        name="report_issues",
+                        description="Report detected critical violations in the media.",
+                        parameters={
+                            "type": "OBJECT",
+                            "properties": {
+                                "flags": {
+                                    "type": "ARRAY",
+                                    "items": {
+                                        "type": "OBJECT",
+                                        "properties": {
+                                            "severity": {"type": "STRING", "description": "critical"},
+                                            "description": {"type": "STRING", "description": "What is wrong?"},
+                                            "confidence": {"type": "NUMBER"}
+                                        },
+                                        "required": ["severity", "description", "confidence"]
+                                    }
                                 }
-                            }
-                        },
-                        "required": ["flags"]
-                    }
+                            },
+                            "required": ["flags"]
+                        }
+                    )
+                ]
+            )
+        ]
+
+        # Prepare the media part
+        media_part = types.Part.from_bytes(data=content_base64, mime_type=mime_type)
+
+        # Run the reasoning engine
+        response = client.models.generate_content(
+            model=self.model_id,
+            contents=[
+                types.Content(
+                    role="user",
+                    parts=[media_part, types.Part.from_text(text="Analyze this media for critical reality-check violations.")]
                 )
-            ]
+            ],
+            config=types.GenerateContentConfig(
+                system_instruction=self.system_instruction,
+                tools=tools,
+                tool_config=types.ToolConfig(
+                    function_calling_config=types.FunctionCallingConfig(mode="ANY")
+                )
+            )
         )
 
-        model = GenerativeModel(
-            model_name="gemini-1.5-pro-preview-0409", # Use Veo/Gemini 3.x equivalent models per availability
-            system_instruction=self._system_instruction,
-            tools=[report_tool]
-        )
-
-        part = Part.from_data(mime_type=mime_type, data=content_base64)
-        
-        # Execute the agent
-        response = model.generate_content(
-            [part, "Analyze this media and report any critical reality-check violations."],
-            tool_config={"function_calling_config": {"mode": "ANY"}}
-        )
-
-        # Parse responses dynamically here
         return {"response": response.text}
 
-# 3. Deploy the Agent Engine locally or to Vertex
+# 3. Deploy the Agent Engine using the modern resource pattern
 def deploy_agent_engine():
-    print(f"Deploying Reality Check Auditor to Vertex AI Reasoning Engine in {REGION}...")
+    print(f"Deploying Reality Check Auditor to Vertex AI Agent Engine in {REGION}...")
     
-    agent = reasoning_engines.ReasoningEngine.create(
-        reasoning_engine=RealityCheckAuditorAgent(project=PROJECT_ID, location=REGION),
+    # Using the modern agent_engines creator
+    agent = agent_engines.AgentEngine.create(
+        agent=RealityCheckAuditorAgent(project=PROJECT_ID, location=REGION),
         requirements=[
-            "google-cloud-aiplatform",
-            "langchain-google-vertexai",
+            "google-cloud-aiplatform>=1.70.0",
+            "google-genai>=1.0.0",
         ],
-        display_name="Reality Check Auditor Agent Engine",
-        description="Audits AI videos strictly for critical hallucinations using Gemini.",
+        display_name="Reality Check Auditor Modern Agent",
+        description="Audits AI media strictly for critical hallucinations using Gemini 3.1 Pro.",
     )
     
-    print(f"Agent successfully deployed! Reasoning Engine ID: {agent.name}")
+    print(f"Agent successfully deployed! Agent Engine ID: {agent.resource_name}")
 
 if __name__ == "__main__":
     deploy_agent_engine()
