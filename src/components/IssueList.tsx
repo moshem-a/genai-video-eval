@@ -1,6 +1,8 @@
 import { Flag } from '@/lib/types';
 import { IssueCard } from './IssueCard';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Button } from '@/components/ui/button';
+import { Download } from 'lucide-react';
 
 interface IssueListProps {
   flags: Flag[];
@@ -26,8 +28,30 @@ export function IssueList({ flags, selectedFlagId, onFlagClick, onConfirm, onDis
   const info = flags.filter(f => f.severity === 'info' && !f.dismissed);
   const dismissed = flags.filter(f => f.dismissed);
 
+  const exportableFlags = flags.filter(f => f.confirmed);
+
+  const handleExport = () => {
+    if (exportableFlags.length === 0) return;
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportableFlags, null, 2));
+    const downloadNode = document.createElement('a');
+    downloadNode.setAttribute("href", dataStr);
+    downloadNode.setAttribute("download", `reviewed_flags_export_${Date.now()}.json`);
+    document.body.appendChild(downloadNode);
+    downloadNode.click();
+    downloadNode.remove();
+  };
+
   const content = (
-    <div className="space-y-2">
+    <div className="space-y-4">
+      {exportableFlags.length > 0 && !compact && (
+        <div className="flex justify-end pr-3">
+          <Button variant="outline" size="sm" onClick={handleExport} className="w-full sm:w-auto">
+            <Download className="h-4 w-4 mr-2" />
+            Export Reviewed to JSON
+          </Button>
+        </div>
+      )}
+      <div className="space-y-2">
       {[...critical, ...warnings, ...info, ...dismissed].map(flag => (
         <IssueCard
           key={flag.id}

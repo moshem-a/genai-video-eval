@@ -18,7 +18,7 @@ export function VideoDropzone({ onFileSelected, isAnalyzing }: VideoDropzoneProp
       e.preventDefault();
       setIsDragging(false);
       const file = e.dataTransfer.files[0];
-      if (file && file.type.startsWith('video/')) {
+      if (file && (file.type.startsWith('video/') || file.type.startsWith('image/'))) {
         onFileSelected(file);
       }
     },
@@ -52,17 +52,17 @@ export function VideoDropzone({ onFileSelected, isAnalyzing }: VideoDropzoneProp
         </div>
         <div className="text-center">
           <p className="text-lg font-medium text-foreground">
-            Drop your video here
+            Drop your media here
           </p>
           <p className="mt-1 text-sm text-muted-foreground">
-            MP4, WebM, MOV — up to 100MB
+            MP4, WebM, MOV, JPG, PNG — up to 100MB
           </p>
         </div>
         <div className="flex items-center gap-3">
           <label>
             <input
               type="file"
-              accept="video/*"
+              accept="video/*, image/*"
               onChange={handleFileInput}
               className="hidden"
               disabled={isAnalyzing}
