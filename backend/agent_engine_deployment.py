@@ -19,7 +19,7 @@ from google.genai import types
 
 # 1. Initialize Vertex AI
 # Replace with your actual Google Cloud Project ID and Region
-PROJECT_ID = "YOUR_PROJECT_ID"
+PROJECT_ID = "agentic-system-488914"
 REGION = "us-central1"
 
 vertexai.init(project=PROJECT_ID, location=REGION)

@@ -24,7 +24,7 @@ if [ ! -f "$GCLOUD_BIN" ]; then
 fi
 
 # Hardcoded project ID found on system
-PROJECT_ID="gen-lang-client-0535468580"
+PROJECT_ID="agentic-system-488914"
 echo -e "${BLUE}📦 Using Project: ${GREEN}$PROJECT_ID${NC}"
 
 # Ensure necessary APIs are enabled
