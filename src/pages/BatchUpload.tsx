@@ -1,93 +1,56 @@
 import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Shield, ArrowLeft, Upload, Play, Film, Settings } from 'lucide-react';
+import { Shield, ArrowLeft, Upload, Play, Film, Settings, AlertTriangle, CheckCircle, Wand2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import BatchResultsPage from './BatchResults';
 import { Input } from '@/components/ui/input';
-import { Slider } from '@/components/ui/slider';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { BatchVideoList } from '@/components/BatchVideoList';
-import { GroundTruthEditor } from '@/components/GroundTruthEditor';
-import { AgentSettings } from '@/components/AgentSettings';
 import { ApiKeyDialog } from '@/components/ApiKeyDialog';
+import { AgentSettings } from '@/components/AgentSettings';
 import { useBatchEvaluation } from '@/hooks/useBatchEvaluation';
 import { hasApiKey } from '@/lib/gemini-config';
 import { cn } from '@/lib/utils';
+import { AgentConfig } from '@/lib/types';
+import { getStoredAgentConfigs, saveAgentConfigs } from '@/lib/agent-storage';
 
 const BatchUpload = () => {
   const navigate = useNavigate();
   const {
-    batch,
-    isEvaluating,
-    currentVideoIndex,
-    agentConfigs,
-    setAgentConfigs,
-    createBatch,
-    addVideos,
-    removeVideo,
-    addGroundTruth,
-    removeGroundTruth,
-    updateThreshold,
-    applyMetadata,
-    runBatchEvaluation,
-    reset,
+    items,
+    isProcessing,
+    globalFixPrompt,
+    batchInsights,
+    addFiles,
+    clearBatch,
+    startBatchAnalysis,
+    generateSweepingFix,
+    generateBatchInsights,
+    startBatchRegeneration
   } = useBatchEvaluation();
 
-  const [selectedVideoId, setSelectedVideoId] = useState<string>();
   const [isDragging, setIsDragging] = useState(false);
   const [showApiDialog, setShowApiDialog] = useState(!hasApiKey());
-  const [batchName, setBatchName] = useState('');
-  const [isDraggingMetadata, setIsDraggingMetadata] = useState(false);
+  const [agentConfigs, setAgentConfigs] = useState<AgentConfig[]>(getStoredAgentConfigs());
 
-  // Initialize batch on first interaction
-  const ensureBatch = useCallback(() => {
-    if (!batch) {
-      createBatch(batchName || `Batch ${new Date().toLocaleDateString()}`);
-    }
-  }, [batch, batchName, createBatch]);
+  const handleConfigsChange = (configs: AgentConfig[]) => {
+    setAgentConfigs(configs);
+    saveAgentConfigs(configs);
+  };
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
-    ensureBatch();
-    const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('video/'));
-    if (files.length > 0) addVideos(files);
-  }, [addVideos, ensureBatch]);
+    const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('video/') || f.type.startsWith('image/'));
+    if (files.length > 0) addFiles(files);
+  }, [addFiles]);
 
   const handleFileInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    ensureBatch();
-    const files = Array.from(e.target.files || []);
-    if (files.length > 0) addVideos(files);
-  }, [addVideos, ensureBatch]);
+    const files = Array.from(e.target.files || []).filter(f => f.type.startsWith('video/') || f.type.startsWith('image/'));
+    if (files.length > 0) addFiles(files);
+  }, [addFiles]);
 
-  const handleMetadataDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDraggingMetadata(false);
-    const files = Array.from(e.dataTransfer.files).filter(f => f.type === 'application/json' || f.name.endsWith('.json') || f.name.endsWith('.txt'));
-    if (files.length > 0) handleMetadataFiles(files);
-  }, [batch]);
-
-  const handleMetadataInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    if (files.length > 0) handleMetadataFiles(files);
-  }, [batch]);
-
-  const handleMetadataFiles = async (files: File[]) => {
-    ensureBatch();
-    await applyMetadata(files);
-  };
-
-  const handleRunEvaluation = async () => {
-    await runBatchEvaluation();
-  };
-
-  // Show results view after evaluation is complete
-  if (batch && batch.status === 'complete') {
-    return <BatchResultsPage batch={batch} onReset={reset} />;
-  }
-
-  const selectedVideo = batch?.videos.find(v => v.id === selectedVideoId);
-  const threshold = batch?.coverageThreshold ?? 0.85;
+  const allPending = items.every(i => i.status === 'pending');
+  const allAnalyzed = items.length > 0 && items.every(i => i.status === 'done' && !i.regeneratedResult);
+  const allRegenerated = items.length > 0 && items.every(i => i.regeneratedResult);
 
   return (
     <div className="min-h-screen bg-background">
@@ -100,7 +63,7 @@ const BatchUpload = () => {
               <ArrowLeft className="h-4 w-4" />
             </Button>
             <Shield className="h-5 w-5 text-primary" />
-            <h1 className="text-lg font-bold tracking-tight text-foreground">Batch Evaluation</h1>
+            <h1 className="text-lg font-bold tracking-tight text-foreground">Batch Remediation Lab</h1>
           </div>
           <Button variant="ghost" size="icon" onClick={() => setShowApiDialog(true)}>
             <Settings className="h-4 w-4" />
@@ -108,176 +71,179 @@ const BatchUpload = () => {
         </div>
       </header>
 
-      <main className="container px-4 py-6">
-        <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-6">
-          {/* Left: Video list + upload */}
-          <div className="space-y-4">
-            <Input
-              placeholder="Batch name (optional)"
-              value={batchName}
-              onChange={e => setBatchName(e.target.value)}
-              className="text-sm"
-            />
-
-            {/* Video Dropzone */}
-            <div
-              onDragOver={e => { e.preventDefault(); setIsDragging(true); }}
-              onDragLeave={() => setIsDragging(false)}
-              onDrop={handleDrop}
-              className={cn(
-                'flex flex-col items-center justify-center rounded-lg border-2 border-dashed p-6 transition-all',
-                isDragging ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50',
-                isEvaluating && 'pointer-events-none opacity-50'
-              )}
-            >
-              <Film className="h-6 w-6 text-muted-foreground mb-2" />
-              <p className="text-xs text-muted-foreground mb-2 text-center">Drop videos here or</p>
-              <label>
-                <input
-                  type="file"
-                  accept="video/*"
-                  multiple
-                  onChange={handleFileInput}
-                  className="hidden"
-                  disabled={isEvaluating}
-                />
-                <Button variant="secondary" size="sm" asChild>
-                  <span className="cursor-pointer">
-                    <Upload className="h-3 w-3 mr-1" /> Browse Videos
-                  </span>
-                </Button>
-              </label>
-            </div>
-
-            {/* Metadata Dropzone */}
-            <div
-              onDragOver={e => { e.preventDefault(); setIsDraggingMetadata(true); }}
-              onDragLeave={() => setIsDraggingMetadata(false)}
-              onDrop={handleMetadataDrop}
-              className={cn(
-                'flex flex-col items-center justify-center rounded-lg border-2 border-dashed p-6 transition-all bg-muted/20',
-                isDraggingMetadata ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50',
-                isEvaluating && 'pointer-events-none opacity-50'
-              )}
-            >
-              <Upload className="h-6 w-6 text-muted-foreground mb-2" />
-              <p className="text-xs text-muted-foreground mb-2 text-center">Add JSON/Text Metadata</p>
-              <label>
-                <input
-                  type="file"
-                  accept=".json,.txt"
-                  multiple
-                  onChange={handleMetadataInput}
-                  className="hidden"
-                  disabled={isEvaluating}
-                />
-                <Button variant="outline" size="sm" asChild>
-                  <span className="cursor-pointer">
-                    <Upload className="h-3 w-3 mr-1" /> Upload Data
-                  </span>
-                </Button>
-              </label>
-            </div>
-
-            {/* Video list */}
-            {batch && batch.videos.length > 0 && (
-              <BatchVideoList
-                videos={batch.videos}
-                selectedVideoId={selectedVideoId}
-                onSelect={setSelectedVideoId}
-                onRemove={isEvaluating ? undefined : removeVideo}
-                disabled={isEvaluating}
-              />
-            )}
-
-            {/* Threshold */}
+      <main className="container px-4 py-8">
+        
+        {/* Controls Panel */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+          <div className="lg:col-span-1 space-y-4">
             <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-xs uppercase tracking-wider text-muted-foreground">
-                  Coverage Threshold
-                </CardTitle>
+              <CardHeader>
+                <CardTitle className="text-sm">Batch Controls</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-2xl font-bold font-mono text-foreground">
-                    {Math.round(threshold * 100)}%
-                  </span>
+              <CardContent className="space-y-4">
+                
+                <div
+                  onDragOver={e => { e.preventDefault(); setIsDragging(true); }}
+                  onDragLeave={() => setIsDragging(false)}
+                  onDrop={handleDrop}
+                  className={cn(
+                    'flex flex-col items-center justify-center rounded-lg border-2 border-dashed p-6 transition-all',
+                    isDragging ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50',
+                    isProcessing && 'pointer-events-none opacity-50'
+                  )}
+                >
+                  <Upload className="h-6 w-6 text-muted-foreground mb-2" />
+                  <p className="text-xs text-muted-foreground mb-2 text-center">Drop sample media (Images/Videos) here</p>
+                  <label>
+                    <input
+                      type="file"
+                      accept="video/*, image/*"
+                      multiple
+                      onChange={handleFileInput}
+                      className="hidden"
+                      disabled={isProcessing}
+                    />
+                    <Button variant="secondary" size="sm" asChild>
+                      <span className="cursor-pointer">Browse Files</span>
+                    </Button>
+                  </label>
                 </div>
-                <Slider
-                  value={[threshold * 100]}
-                  onValueChange={([v]) => updateThreshold(v / 100)}
-                  min={50}
-                  max={100}
-                  step={5}
-                  disabled={isEvaluating}
+
+                <AgentSettings
+                  configs={agentConfigs}
+                  onChange={handleConfigsChange}
+                  disabled={isProcessing}
                 />
+
+                <div className="pt-4 border-t border-border flex flex-col gap-2">
+                  <Button 
+                    className="w-full" 
+                    onClick={() => startBatchAnalysis(agentConfigs)}
+                    disabled={isProcessing || items.length === 0 || !allPending}
+                  >
+                    <Play className="h-4 w-4 mr-2" />
+                    1. Analyze Batch
+                  </Button>
+                  
+                  <Button 
+                    variant="outline"
+                    className="w-full" 
+                    onClick={generateSweepingFix}
+                    disabled={isProcessing || items.length === 0 || !allAnalyzed}
+                  >
+                    <Shield className="h-4 w-4 mr-2" />
+                    2. Generate Sweeping Fix
+                  </Button>
+
+                  <Button 
+                    variant="outline"
+                    className="w-full text-indigo-400 border-indigo-500/30 hover:bg-indigo-500/10" 
+                    onClick={generateBatchInsights}
+                    disabled={isProcessing || items.length === 0 || !allAnalyzed}
+                  >
+                    <CheckCircle className="h-4 w-4 mr-2" />
+                    3. Summarize Batch Insights
+                  </Button>
+
+                  <Button 
+                    variant="secondary"
+                    className="w-full border-blue-500/30 text-blue-400 hover:bg-blue-500/10" 
+                    onClick={() => startBatchRegeneration(globalFixPrompt!)}
+                    disabled={isProcessing || !globalFixPrompt}
+                  >
+                    <Wand2 className="h-4 w-4 mr-2" />
+                    4. Regenerate with Fix
+                  </Button>
+
+                  <Button variant="ghost" size="sm" onClick={clearBatch} disabled={isProcessing}>Clear Batch</Button>
+                </div>
               </CardContent>
             </Card>
-
-            {/* Agent settings */}
-            <AgentSettings
-              configs={agentConfigs}
-              onChange={setAgentConfigs}
-              disabled={isEvaluating}
-            />
-
-            {/* Run button */}
-            <Button
-              className="w-full"
-              size="lg"
-              onClick={handleRunEvaluation}
-              disabled={isEvaluating || !batch || batch.videos.length === 0}
-            >
-              <Play className="h-4 w-4 mr-2" />
-              {isEvaluating
-                ? `Evaluating ${currentVideoIndex + 1}/${batch?.videos.length ?? 0}...`
-                : 'Run Evaluation'
-              }
-            </Button>
           </div>
 
-          {/* Right: Selected video detail */}
-          <div>
-            {selectedVideo ? (
-              <div className="space-y-4">
-                <Card>
-                  <CardContent className="p-0">
-                    <video
-                      src={selectedVideo.videoUrl}
-                      controls
-                      className="w-full rounded-lg"
-                      style={{ maxHeight: '400px' }}
-                    />
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-sm">{selectedVideo.name}</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <GroundTruthEditor
-                      issues={selectedVideo.groundTruth}
-                      onAdd={(desc, start, end) => addGroundTruth(selectedVideo.id, desc, start, end)}
-                      onRemove={(issueId) => removeGroundTruth(selectedVideo.id, issueId)}
-                      disabled={isEvaluating}
-                    />
-                  </CardContent>
-                </Card>
-              </div>
-            ) : (
-              <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
-                <Film className="h-12 w-12 mb-3 opacity-30" />
-                <p className="text-sm">
-                  {batch && batch.videos.length > 0
-                    ? 'Select a video to annotate known issues'
-                    : 'Upload videos to get started'
-                  }
-                </p>
-              </div>
+          <div className="lg:col-span-2 space-y-6">
+            
+            {globalFixPrompt && (
+               <Card className="border-blue-500/30 bg-blue-500/5">
+                 <CardHeader className="pb-2">
+                   <CardTitle className="text-sm flex items-center gap-2 text-blue-400">
+                     <Wand2 className="h-4 w-4" />
+                     Gemini Sweeping Fix Recommendation
+                   </CardTitle>
+                 </CardHeader>
+                 <CardContent>
+                    <p className="text-sm opacity-90 leading-relaxed font-mono bg-background/50 p-4 rounded text-blue-200">
+                      {globalFixPrompt}
+                    </p>
+                 </CardContent>
+               </Card>
             )}
+
+            {batchInsights && (
+               <Card className="border-indigo-500/30 bg-indigo-500/5 mt-4 mb-6">
+                 <CardHeader className="pb-2">
+                   <CardTitle className="text-sm flex items-center gap-2 text-indigo-400">
+                     <CheckCircle className="h-4 w-4" />
+                     Prompt Engineering Insights (Batch Summary)
+                   </CardTitle>
+                 </CardHeader>
+                 <CardContent>
+                    <p className="text-sm opacity-90 leading-relaxed font-sans bg-background/60 p-5 rounded text-indigo-100 whitespace-pre-wrap">
+                      {batchInsights}
+                    </p>
+                 </CardContent>
+               </Card>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {items.map(item => (
+                <Card key={item.id} className={cn("overflow-hidden border-2", 
+                  item.status === 'error' ? "border-red-500/50" : 
+                  item.status === 'analyzing' || item.status === 'regenerating' ? "border-primary/50 animate-pulse" : "border-border"
+                )}>
+                  <div className="p-4 flex gap-4">
+                    <div className="w-1/3 aspect-video bg-muted rounded overflow-hidden flex items-center justify-center">
+                      <Film className="h-6 w-6 text-muted-foreground/30" />
+                    </div>
+                    <div className="w-2/3 flex flex-col">
+                      <h3 className="font-medium text-sm truncate">{item.file.name}</h3>
+                      <div className="text-xs text-muted-foreground mb-auto">{item.status}</div>
+                      
+                      {item.originalResult && (
+                        <div className="mt-2 text-xs flex justify-between border-t border-border/50 pt-2">
+                          <span className="text-muted-foreground">Original Score:</span>
+                          <span className={cn("font-bold", 
+                            item.originalResult.coherenceScore > 80 ? "text-green-500" : 
+                            item.originalResult.coherenceScore > 50 ? "text-yellow-500" : "text-red-500"
+                          )}>{item.originalResult.coherenceScore}</span>
+                        </div>
+                      )}
+
+                      {item.regeneratedResult && (
+                        <div className="mt-1 text-xs flex justify-between">
+                          <span className="text-muted-foreground flex items-center gap-1">
+                            <Wand2 className="h-3 w-3" /> New Score:
+                          </span>
+                          <span className={cn("font-bold", 
+                            item.regeneratedResult.coherenceScore > 80 ? "text-green-500" : 
+                            item.regeneratedResult.coherenceScore > 50 ? "text-yellow-500" : "text-red-500"
+                          )}>{item.regeneratedResult.coherenceScore}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </Card>
+              ))}
+              
+              {items.length === 0 && (
+                <div className="col-span-full h-64 border border-dashed rounded-lg flex flex-col items-center justify-center text-muted-foreground">
+                  No items in batch.
+                </div>
+              )}
+            </div>
           </div>
         </div>
+
       </main>
     </div>
   );

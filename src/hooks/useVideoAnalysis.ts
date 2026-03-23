@@ -68,12 +68,25 @@ export function useVideoAnalysis(): UseVideoAnalysisReturn {
     setAgentResults(initialResults);
 
     try {
-      // Step 1: Extract frames
+      // Step 1: Extract frames or image
       setProgress(10);
-      const { frames, duration } = await extractFrames(file, 12, (p) => {
-        setFrameExtractionProgress(p);
-        setProgress(10 + (p / 100) * 20);
-      });
+      let frames: string[] = [];
+      let duration = 0;
+
+      if (file.type.startsWith('image/')) {
+        const { fileToBase64 } = await import('@/lib/video-utils');
+        const base64 = await fileToBase64(file);
+        frames = [base64];
+        setFrameExtractionProgress(100);
+        setProgress(30);
+      } else {
+        const result = await extractFrames(file, 12, (p) => {
+          setFrameExtractionProgress(p);
+          setProgress(10 + (p / 100) * 20);
+        });
+        frames = result.frames;
+        duration = result.duration;
+      }
 
       if (frames.length === 0) {
         throw new Error('No frames could be extracted from the video');
