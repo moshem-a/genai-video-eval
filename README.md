@@ -71,4 +71,3 @@ Follow these steps to deploy the auditor on your machine:
 
 ---
 
-## 👨‍💻 Author:  **Moshe Mazuz**
