@@ -1,33 +1,23 @@
 # backend/main.py
 """
-Reality Check Engine - FastAPI ADK Bridge
-This server serves as the unified backend for the Reality Check Engine, 
-proxying requests to the Vertex AI Agent Engine for 'Full ADK' integration.
+Reality Check Engine - FastAPI Server
+Serves the built React application.
 """
 
 import os
 import uvicorn
 import logging
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
-from pydantic import BaseModel
-from typing import List, Optional
-import vertexai
-from vertexai import agent_engines
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Configuration
-PROJECT_ID = os.getenv("GCP_PROJECT", "agentic-system-488914")
-REGION = os.getenv("GCP_REGION", "us-central1")
-AGENT_ENGINE_ID = os.getenv("AGENT_ENGINE_ID") # e.g. 'projects/.../locations/.../reasoningEngines/...'
-
 # Initialize FastAPI
-app = FastAPI(title="Reality Check Engine ADK Bridge")
+app = FastAPI(title="Reality Check Backend")
 
 # Enable CORS for local development
 app.add_middleware(
@@ -37,68 +27,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Initialize Vertex AI
-vertexai.init(project=PROJECT_ID, location=REGION)
-
-class AnalysisRequest(BaseModel):
-    media_base64: str
-    mime_type: str
-    text: Optional[str] = "Analyze this media for critical reality-check violations."
-
-class BatchAnalysisRequest(BaseModel):
-    issues_summary: List[str]
-
 @app.get("/api/health")
 async def health_check():
-    return {"status": "healthy", "agent_engine_id": AGENT_ENGINE_ID}
-
-@app.post("/api/analyze")
-async def analyze_media(request: AnalysisRequest):
-    """
-    Proxies calls to the deployed ADK Agent Engine.
-    """
-    if not AGENT_ENGINE_ID:
-        logger.error("AGENT_ENGINE_ID not set")
-        raise HTTPException(status_code=500, detail="AGENT_ENGINE_ID not configured.")
-
-    try:
-        logger.info(f"Querying Agent Engine {AGENT_ENGINE_ID} for media analysis")
-        engine = agent_engines.AgentEngine.get(AGENT_ENGINE_ID)
-        
-        response = engine.query(
-            text=request.text,
-            media_base64=request.media_base64,
-            mime_type=request.mime_type
-        )
-        
-        return response
-    except Exception as e:
-        logger.error(f"Error querying Agent Engine: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.post("/api/batch-insights")
-async def generate_batch_insights(request: BatchAnalysisRequest):
-    """
-    Generates a prompt engineering report based on a batch of issues.
-    """
-    if not AGENT_ENGINE_ID:
-        raise HTTPException(status_code=500, detail="AGENT_ENGINE_ID not configured.")
-
-    try:
-        logger.info("Generating batch insights through ADK Agent")
-        engine = agent_engines.AgentEngine.get(AGENT_ENGINE_ID)
-        
-        prompt = f"""You are an expert AI Prompt Engineer. 
-        Analyze the following issues found in a batch of generated videos and provide a summary report:
-        {chr(10).join(request.issues_summary)}
-        
-        Provide actionable advice on how to improve the prompts to avoid these issues."""
-
-        response = engine.query(text=prompt)
-        return response
-    except Exception as e:
-        logger.error(f"Error generating insights: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+    return {"status": "healthy", "service": "frontend-only"}
 
 # Serving React Frontend (once built into dist/)
 # This allows a unified Docker deployment

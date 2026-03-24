@@ -10,6 +10,8 @@ NC='\033[0m' # No Color
 
 # Absolute path to gcloud found on system
 GCLOUD_BIN="/Users/moshem/gcloud --version/google-cloud-sdk/bin/gcloud"
+AGENT_ENGINE_ID="projects/agentic-system-488914/locations/us-central1/reasoningEngines/8885141040331030528"
+PROJECT_ID="agentic-system-488914"
 export CLOUDSDK_PYTHON="/usr/local/bin/python3.13"
 
 echo "------------------------------------------------"
@@ -24,28 +26,12 @@ if [ ! -f "$GCLOUD_BIN" ]; then
 fi
 
 # Hardcoded project ID found on system
-PROJECT_ID="agentic-system-488914"
+PROJECT_ID="gen-lang-client-0535468580"
 echo -e "${BLUE}📦 Using Project: ${GREEN}$PROJECT_ID${NC}"
 
 # Ensure necessary APIs are enabled
 echo -e "${BLUE}🔧 Ensuring necessary APIs are enabled...${NC}"
 "$GCLOUD_BIN" services enable run.googleapis.com artifactregistry.googleapis.com cloudbuild.googleapis.com aiplatform.googleapis.com --quiet --project "$PROJECT_ID"
-
-# Check for AGENT_ENGINE_ID
-if [ -z "$AGENT_ENGINE_ID" ]; then
-  echo -e "${RED}⚠️  Warning: AGENT_ENGINE_ID environment variable is not set.${NC}"
-  echo -e "${BLUE}Attempting to find a deployed Reasoning Engine...${NC}"
-  # We try to get the most recent reasoning engine, but this might fail if gcloud beta is not installed
-  FOUND_ID=$("$GCLOUD_BIN" beta ai reasoning-engines list --region us-central1 --format="value(name)" --limit=1 2>/dev/null)
-  if [ -n "$FOUND_ID" ]; then
-    AGENT_ENGINE_ID=$FOUND_ID
-    echo -e "${GREEN}✅ Found Agent Engine: $AGENT_ENGINE_ID${NC}"
-  else
-    echo -e "${RED}❌ Could not automatically find an Agent Engine ID.${NC}"
-    echo -e "Please set it manually: export AGENT_ENGINE_ID='projects/...'"
-    # We continue but the app might fail to analyze until set
-  fi
-fi
 
 # Deploy to Cloud Run
 echo -e "${BLUE}🏗️  Building and deploying Full-Stack app (FastAPI + React)...${NC}"
@@ -56,7 +42,7 @@ echo -e "${BLUE}🏗️  Building and deploying Full-Stack app (FastAPI + React)
   --port 8080 \
   --memory 2Gi \
   --cpu 1 \
-  --set-env-vars "GCP_PROJECT=$PROJECT_ID,GCP_REGION=us-central1,AGENT_ENGINE_ID=$AGENT_ENGINE_ID"
+  --set-env-vars "GCP_PROJECT=$PROJECT_ID,GCP_REGION=us-central1"
 
 if [ $? -eq 0 ]; then
   echo "------------------------------------------------"

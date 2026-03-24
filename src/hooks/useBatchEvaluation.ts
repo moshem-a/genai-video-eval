@@ -106,16 +106,22 @@ export function useBatchEvaluation() {
 
     setIsProcessing(true);
     try {
-      const response = await fetch('/api/batch-insights', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ issues_summary: allIssues })
-      });
-
-      if (!response.ok) throw new Error('Failed to generate insights');
+      const genAI = new GoogleGenerativeAI(getStoredApiKey()!);
+      const model = genAI.getGenerativeModel({ model: getStoredModel() });
       
-      const data = await response.json();
-      const report = data.response.trim();
+      const prompt = `You are an expert AI Prompt Engineer and Video Director Analyst.
+      A user has generated a batch of AI videos that share several reality-check flaws.
+      Here are the critical issues detected across their batch:
+      ${allIssues.join('\n')}
+      
+      Write a clear, encouraging "Prompt Engineering Insights Report" (in plain text formatted cleanly with spacing) summarizing:
+      1. What specific concepts the user's current prompts are struggling with across the board.
+      2. Specific, actionable advice on how they should alter their text-to-video prompts to prevent these issues.
+      3. Recommend any positive reinforcement keywords to add to their future prompts.
+      Keep it readable and to the point. No markdown bolding, just well spaced paragraphs.`;
+
+      const res = await model.generateContent(prompt);
+      const report = res.response.text().trim();
       setBatchInsights(report);
       return report;
     } catch (e) {
@@ -136,22 +142,19 @@ export function useBatchEvaluation() {
 
     setIsProcessing(true);
     try {
-      const prompt = `Identify the overarching trend in these issues and provide a single powerful 1-sentence fix prompt: ${allIssues.join('; ')}`;
+      const genAI = new GoogleGenerativeAI(getStoredApiKey()!);
+      const model = genAI.getGenerativeModel({ model: getStoredModel() });
       
-      const response = await fetch('/api/analyze', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          media_base64: items[0].originalResult?.agents[0].flags[0]?.description || '', // Dummy field if needed
-          mime_type: 'text/plain',
-          text: prompt 
-        })
-      });
+      const prompt = `You are a universal Prompt Architect. 
+      I have a batch of AI-generated videos that all share common severe flaws.
+      Here are the critical issues detected across the batch:
+      ${allIssues.join('\n')}
+      
+      Identify the overarching trend (e.g. "always messes up hands", "lighting is flat").
+      Provide a single, powerful "Negative Prompt" or "Positive Guidance" instruction (max 1-2 sentences) that we can append to ALL video generation requests to fix this across the board natively in Veo. DO NOT wrap the output in quotes. Just output the raw instruction.`;
 
-      if (!response.ok) throw new Error('Failed to generate sweeping fix');
-      
-      const data = await response.json();
-      const fix = data.response.trim();
+      const res = await model.generateContent(prompt);
+      const fix = res.response.text().trim();
       setGlobalFixPrompt(fix);
       return fix;
     } catch (e) {
