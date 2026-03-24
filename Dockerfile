@@ -15,30 +15,16 @@ COPY . .
 # Build the application
 RUN npm run build
 
-# Production stage - Python FastAPI
-FROM python:3.11-slim
+# Production stage
+FROM nginx:alpine
 
-WORKDIR /app
+# Copy nginx configuration
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
-    && rm -rf /var/lib/apt/lists/*
+# Copy build output from build stage
+COPY --from=build /app/dist /usr/share/nginx/html
 
-# Copy backend requirements
-COPY backend/requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
-# Copy build output from build stage to /app/dist
-COPY --from=build /app/dist ./dist
-
-# Copy backend source
-COPY backend/main.py .
-
-# Expose port (Cloud Run default)
+# Expose port 8080 (Cloud Run default)
 EXPOSE 8080
 
-# Environment variables
-ENV PORT=8080
-
-CMD ["python", "main.py"]
+CMD ["nginx", "-g", "daemon off;"]
