@@ -1,4 +1,4 @@
-# Reality Check Engine 🚀
+# GenAI Video Evaluator 🚀
 
 **Autonomous Video Verification Loop solving the "Continuity Gap" in Generative Media with Multi-Agent Logic.**
 
