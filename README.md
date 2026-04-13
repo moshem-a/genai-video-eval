@@ -1,6 +1,6 @@
 # GenAI Video Evaluator 🚀
 
-**Autonomous Video Verification Loop solving the "Continuity Gap" in Generative Media with Multi-Agent Logic.**
+**Autonomous Video Verification Loop solving the "Continuity Gap" in Generative Media with Multi-Agent Logic.** 
 
 ![Reality Check Dashboard](assets/dashboard.png)
 
