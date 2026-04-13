@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { AgentConfig, AnalysisResult, Flag } from '@/lib/types';
-import { extractFrames, fileToBase64 } from '@/lib/video-utils';
+import { extractFrames, extractSpecificFrames, fileToBase64 } from '@/lib/video-utils';
+import { findBestStartFrame } from '@/lib/remediation';
 import { runAgent, computeCoherenceScore } from '@/lib/gemini';
 import { generateVideoWithVeo } from '@/lib/veo';
 
@@ -174,25 +175,30 @@ export function useBatchEvaluation() {
       setItems(prev => prev.map(i => i.id === item.id ? { ...i, status: 'regenerating' } : i));
 
       try {
-        // Find reference images for similarity
-        let referenceImages: string[] = [];
-        if (item.file.type.startsWith('video/')) {
-           const extracted = await extractFrames(item.file, 3); // start, mid, end
-           referenceImages = extracted.frames;
-        } else {
-           referenceImages = [await fileToBase64(item.file)];
+        // Smart frame selection: pick a clean frame outside flagged regions
+        let inputImageBase64: string | undefined;
+        const itemFlags = item.originalResult.flags;
+        const itemDuration = item.originalResult.videoDuration;
+        const { timestamp: bestTs, confidence } = findBestStartFrame(itemFlags, itemDuration);
+
+        if (confidence !== 'none' && bestTs !== null) {
+          if (item.file.type.startsWith('video/')) {
+            const extracted = await extractSpecificFrames(item.file, [bestTs]);
+            inputImageBase64 = extracted.frames[0];
+          } else {
+            inputImageBase64 = await fileToBase64(item.file);
+          }
         }
 
         const prompt = `A cinematic shot. REMEDIATION GUIDANCE: ${universalFix}`;
-        
+
         // Use Veo model directly (poll via Veo API)
         const videoPoller = await generateVideoWithVeo({
-          model: 'veo-3.1',
+          model: 'veo-3.0',
           prompt,
           aspectRatio: '16:9',
           durationSeconds: 5,
-          referenceImages,
-          strategy: 'similarity',
+          inputImageBase64,
           onStatusUpdate: () => {},
         });
 

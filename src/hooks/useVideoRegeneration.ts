@@ -4,6 +4,7 @@ import { runAgent, computeCoherenceScore } from '@/lib/gemini';
 import { getStoredAgentConfigs } from '@/lib/agent-storage';
 import { generateVideoWithVeo, VeoModelKey } from '@/lib/veo';
 import { extractFrames, extractSpecificFrames } from '@/lib/video-utils';
+import { findBestStartFrame } from '@/lib/remediation';
 
 export interface VideoVersion {
   id: string;
@@ -40,9 +41,10 @@ export function useVideoRegeneration() {
       inputImageBase64?: string;
       strategy?: 'creative' | 'similarity';
       originalVideoUrl?: string;
+      flags?: Flag[];
     }
   ) => {
-    const { prompt, model, durationSeconds, aspectRatio, includeAudio, inputImageBase64, strategy = 'creative', originalVideoUrl } = options;
+    const { prompt, model, durationSeconds, aspectRatio, includeAudio, inputImageBase64, strategy = 'creative', originalVideoUrl, flags = [] } = options;
     setRegeneration(prev => ({
       ...prev,
       status: 'generating',
@@ -50,22 +52,35 @@ export function useVideoRegeneration() {
     }));
 
     try {
-      let referenceImages: string[] | undefined;
+      // For continuity strategy: extract a clean frame from the original video
+      // that avoids flagged problem regions, and use it as the starting image.
+      let startingImage = inputImageBase64;
+      if (strategy === 'similarity' && originalVideoUrl && !inputImageBase64) {
+        const { timestamp: bestTimestamp, confidence } = findBestStartFrame(flags, originalDuration);
 
-      // Extract reference frames if similarity strategy is chosen
-      if (strategy === 'similarity' && originalVideoUrl) {
-        setRegeneration(prev => ({ ...prev, statusMessage: 'Extracting reference frames from original video...' }));
-        try {
-          const response = await fetch(originalVideoUrl);
-          const blob = await response.blob();
-          const file = new File([blob], 'reference.mp4', { type: 'video/mp4' });
-          
-          // Extract specific frames: First, Middle, and near-End frames (Up to 3 for Veo 3.x)
-          const timestamps = [0, originalDuration / 2, Math.max(0, originalDuration - 0.5)];
-          const { frames } = await extractSpecificFrames(file, timestamps);
-          referenceImages = frames;
-        } catch (err) {
-          console.warn('Failed to extract reference frames, falling back to creative mode:', err);
+        if (confidence === 'none' || bestTimestamp === null) {
+          console.warn('No clean frames available for continuity mode, falling back to text-only generation');
+          setRegeneration(prev => ({
+            ...prev,
+            statusMessage: 'No clean starting frame found — using text-only generation...',
+          }));
+        } else {
+          setRegeneration(prev => ({
+            ...prev,
+            statusMessage: `Extracting clean frame at ${bestTimestamp.toFixed(1)}s from original video...`,
+          }));
+          try {
+            const response = await fetch(originalVideoUrl);
+            const blob = await response.blob();
+            const file = new File([blob], 'reference.mp4', { type: 'video/mp4' });
+
+            const { frames } = await extractSpecificFrames(file, [bestTimestamp]);
+            if (frames.length > 0) {
+              startingImage = frames[0];
+            }
+          } catch (err) {
+            console.warn('Failed to extract starting frame, falling back to text-only generation:', err);
+          }
         }
       }
 
@@ -76,8 +91,7 @@ export function useVideoRegeneration() {
         aspectRatio,
         durationSeconds,
         includeAudio,
-        inputImageBase64,
-        referenceImages,
+        inputImageBase64: startingImage,
         onStatusUpdate: (statusMessage) => {
           setRegeneration(prev => ({ ...prev, statusMessage }));
         },

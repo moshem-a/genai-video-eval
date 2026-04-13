@@ -37,7 +37,7 @@ export function PromptEditorDialog({
 }: PromptEditorDialogProps) {
   const [prompt, setPrompt] = useState(initialPrompt);
   const [model, setModel] = useState<VeoModelKey>(initialModel);
-  const [duration, setDuration] = useState(initialDuration);
+  const [duration, setDuration] = useState(Math.max(4, Math.min(Math.round(initialDuration), 8)));
   const [aspectRatio, setAspectRatio] = useState<'16:9' | '9:16' | '1:1'>('16:9');
   const [includeAudio, setIncludeAudio] = useState(false);
   const [strategy, setStrategy] = useState<'creative' | 'similarity'>('similarity');
@@ -47,7 +47,7 @@ export function PromptEditorDialog({
   useEffect(() => {
     if (open) {
       setPrompt(initialPrompt);
-      setDuration(Math.min(initialDuration, 8));
+      setDuration(Math.max(4, Math.min(initialDuration, 8)));
     }
   }, [open, initialPrompt, initialDuration]);
 
@@ -187,8 +187,10 @@ export function PromptEditorDialog({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="3">3 Seconds</SelectItem>
+                  <SelectItem value="4">4 Seconds</SelectItem>
                   <SelectItem value="5">5 Seconds</SelectItem>
+                  <SelectItem value="6">6 Seconds</SelectItem>
+                  <SelectItem value="7">7 Seconds</SelectItem>
                   <SelectItem value="8">8 Seconds</SelectItem>
                 </SelectContent>
               </Select>
@@ -235,7 +237,7 @@ export function PromptEditorDialog({
               <div className="col-span-2 flex items-center gap-2 p-2 rounded border border-primary/20 bg-primary/5 text-[10px] text-primary">
                 <Clock className="h-3 w-3" />
                 <span>
-                  <b>Continuity Mode Active:</b> Auto-extracting frames from 0.0s, middle, and end to anchor the generation.
+                  <b>Continuity Mode Active:</b> A clean starting frame will be auto-selected from a region with no detected issues.
                 </span>
               </div>
             )}

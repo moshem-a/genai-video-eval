@@ -49,6 +49,7 @@ const BatchResultsPage = ({ batch, onReset }: BatchResultsProps) => {
     includeAudio: boolean;
     strategy: 'creative' | 'similarity';
     originalVideoUrl?: string;
+    flags?: Flag[];
   }) => {
     if (!selectedVideo) return;
     regenerate(selectedVideo.name, selectedVideo.duration, options);

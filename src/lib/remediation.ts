@@ -52,6 +52,45 @@ export function flagsToSections(flags: Flag[], padding: number = 1): Remediation
   return sections;
 }
 
+/**
+ * Find the best starting frame timestamp that avoids flagged problem regions.
+ * Returns null if the entire video is covered by flagged sections.
+ */
+export function findBestStartFrame(
+  flags: Flag[],
+  videoDuration: number,
+  padding: number = 1
+): { timestamp: number | null; confidence: 'clean' | 'none' } {
+  if (flags.length === 0) {
+    return { timestamp: 0, confidence: 'clean' };
+  }
+
+  const sections = flagsToSections(flags, padding);
+
+  // Build clean gaps: time intervals not covered by any flagged section
+  const gaps: { start: number; end: number }[] = [];
+  let cursor = 0;
+  for (const section of sections) {
+    if (section.start > cursor) {
+      gaps.push({ start: cursor, end: section.start });
+    }
+    cursor = Math.max(cursor, section.end);
+  }
+  if (cursor < videoDuration) {
+    gaps.push({ start: cursor, end: videoDuration });
+  }
+
+  if (gaps.length === 0) {
+    return { timestamp: null, confidence: 'none' };
+  }
+
+  // Pick the gap closest to t=0, use its midpoint
+  const bestGap = gaps[0];
+  const timestamp = (bestGap.start + bestGap.end) / 2;
+
+  return { timestamp, confidence: 'clean' };
+}
+
 export async function generateRegenerationPrompt(
   videoName: string,
   flags: Flag[],

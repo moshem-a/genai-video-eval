@@ -18,7 +18,6 @@ interface VeoGenerateOptions {
   durationSeconds?: number;
   includeAudio?: boolean;
   inputImageBase64?: string; // Base64 encoded image for image-to-video
-  referenceImages?: string[]; // Array of base64 strings
   onStatusUpdate?: (status: string) => void;
 }
 
@@ -41,12 +40,14 @@ export async function generateVideoWithVeo(options: VeoGenerateOptions): Promise
     prompt,
     model = 'veo-3.0',
     aspectRatio = '16:9',
-    durationSeconds = 5,
+    durationSeconds: rawDuration = 5,
     includeAudio = true,
     inputImageBase64,
-    referenceImages,
     onStatusUpdate,
   } = options;
+
+  // Veo API requires durationSeconds between 4 and 8 inclusive
+  const durationSeconds = Math.max(4, Math.min(Math.round(rawDuration), 8));
 
   onStatusUpdate?.('Submitting video generation request...');
 
@@ -72,33 +73,6 @@ export async function generateVideoWithVeo(options: VeoGenerateOptions): Promise
       mimeType: mimeType
     };
   }
-
-    // Add reference images if provided
-    if (referenceImages && referenceImages.length > 0) {
-      // NOTE: referenceImages is only supported by Veo 3.1 (preview) on current Vertex AI.
-      // Including it for 3.0 or 2.0 causes 400 errors in some environments.
-      if (model === 'veo-3.1') {
-        instance.referenceImages = referenceImages.map(img => {
-          let mimeType = "image/jpeg";
-          let base64Data = img;
-
-          if (img.includes(',')) {
-            const parts = img.split(',');
-            const match = parts[0].match(/:(.*?);/);
-            if (match) mimeType = match[1];
-            base64Data = parts[1];
-          }
-
-          return {
-            image: {
-              bytesBase64Encoded: base64Data,
-              mimeType: mimeType
-            },
-            referenceType: "asset"
-          };
-        });
-      }
-    }
 
   const payload = {
     instances: [instance],

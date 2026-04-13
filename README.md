@@ -24,9 +24,23 @@ The engine implements a multi-agent "Forensic Audit" mesh that evaluates video f
 ## ✨ Key Features
 
 - **Multi-Agent Forensic Audit**: Categorized evaluation (Physics, Lighting, Morphology) using Gemini 3.1 Pro.
-- **Continuity Mode (Similarity Fix)**: Uses first, middle, and end frames as anchor assets to ensure regenerated videos stick to the original camera angle and subject.
+- **Smart Continuity Mode**: Automatically selects a clean starting frame from a region with no detected issues, avoiding "poisoned" frames that contain the very artifacts being fixed. Falls back to text-only generation when the entire video is flagged.
+- **Veo API Hardening**: Duration values are clamped to the valid 4-8 second range, and unsupported Vertex AI-only parameters (`referenceImages`) are excluded from Gemini API requests, preventing 400 errors.
 - **Ephemeral Security**: API keys are session-based (`sessionStorage`) and auto-expire after 1 hour, ensuring no sensitive data is saved permanently.
 - **Real-time Visualization**: Interactive dashboard showing coherence scores and time-coded alerts.
+
+---
+
+## 🔧 Recent Updates
+
+### Smart Frame Selection for Continuity Regeneration
+Previously, the Continuity strategy always used frame 0 from the original video as the starting image for Veo image-to-video generation. This caused a critical issue: if the first frame itself contained the problem (e.g., a person clipping through a railing), the regenerated video would reproduce the same defect.
+
+**What changed:**
+- **Intelligent frame selection**: The system now analyzes detected flags to compute flagged time regions, finds clean gaps between them, and extracts a frame from the earliest clean region.
+- **Graceful fallback**: When the entire video is covered by flags (no clean frame available), the system falls back to text-only generation and informs the user.
+- **Veo API fixes**: `durationSeconds` is now clamped to the API's valid range (4-8s), and the unsupported `referenceImages` parameter (Vertex AI-only) has been removed from Gemini API requests.
+- **Accurate UI messaging**: The Continuity mode description now correctly reflects the smart frame selection behavior.
 
 ---
 

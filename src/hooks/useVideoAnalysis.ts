@@ -16,6 +16,7 @@ interface UseVideoAnalysisReturn {
   analyzeVideo: (file: File, originPrompt?: string) => Promise<void>;
   reset: () => void;
   updateFlag: (flagId: string, update: Partial<Flag>) => void;
+  videoDuration: number;
 }
 
 export function useVideoAnalysis(): UseVideoAnalysisReturn {
@@ -26,6 +27,7 @@ export function useVideoAnalysis(): UseVideoAnalysisReturn {
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [agentConfigs, setAgentConfigsState] = useState<AgentConfig[]>(getStoredAgentConfigs());
+  const [videoDuration, setVideoDuration] = useState(0);
 
   const setAgentConfigs = useCallback((next: AgentConfig[]) => {
     setAgentConfigsState(next);
@@ -39,6 +41,7 @@ export function useVideoAnalysis(): UseVideoAnalysisReturn {
     setAgentResults([]);
     setResult(null);
     setError(null);
+    setVideoDuration(0);
   }, []);
 
   const updateFlag = useCallback((flagId: string, update: Partial<Flag>) => {
@@ -59,7 +62,6 @@ export function useVideoAnalysis(): UseVideoAnalysisReturn {
 
     const enabledAgents = agentConfigs.filter(a => a.enabled);
     
-    // Initialize agent results
     const initialResults: AgentResult[] = enabledAgents.map(a => ({
       agent: a.type,
       flags: [],
@@ -68,7 +70,6 @@ export function useVideoAnalysis(): UseVideoAnalysisReturn {
     setAgentResults(initialResults);
 
     try {
-      // Step 1: Extract frames or image
       setProgress(10);
       let frames: string[] = [];
       let duration = 0;
@@ -86,17 +87,16 @@ export function useVideoAnalysis(): UseVideoAnalysisReturn {
         });
         frames = result.frames;
         duration = result.duration;
+        setVideoDuration(duration);
       }
 
       if (frames.length === 0) {
         throw new Error('No frames could be extracted from the video');
       }
 
-      // Step 2: Run agents in parallel
       setProgress(30);
       const videoUrl = URL.createObjectURL(file);
 
-      // Update all to running
       setAgentResults(prev => prev.map(r => ({ ...r, status: 'running' as const })));
 
       const agentPromises = enabledAgents.map(async (config, idx) => {
@@ -122,7 +122,6 @@ export function useVideoAnalysis(): UseVideoAnalysisReturn {
       const allFlags = results.flatMap(r => r.flags).sort((a, b) => a.timestampSeconds - b.timestampSeconds);
       const coherenceScore = computeCoherenceScore(allFlags);
 
-      // Check if all agents failed
       const errorCount = results.filter(r => r.status === 'error').length;
       if (errorCount > 0 && errorCount === enabledAgents.length) {
         throw new Error('All evaluation agents failed to complete. Please check your API key and connection.');
@@ -159,5 +158,6 @@ export function useVideoAnalysis(): UseVideoAnalysisReturn {
     analyzeVideo,
     reset,
     updateFlag,
+    videoDuration,
   };
 }

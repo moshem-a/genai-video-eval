@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { VideoEntry } from '@/lib/batch-types';
+import { Flag } from '@/lib/types';
 import { recommendStrategy, flagsToSections, generateRegenerationPrompt } from '@/lib/remediation';
 import { VEO_MODELS, VeoModelKey } from '@/lib/veo';
 import { PromptEditorDialog } from './PromptEditorDialog';
@@ -21,6 +22,7 @@ interface RemediationOptionsProps {
     includeAudio: boolean;
     strategy: 'creative' | 'similarity';
     originalVideoUrl?: string;
+    flags?: Flag[];
   }) => void;
   isRegenerating?: boolean;
   regenerationStatus?: string;
@@ -182,7 +184,8 @@ export function RemediationOptions({ video, onCut, onRegenerate, isRegenerating,
           setShowEditor(false);
           onRegenerate({
             ...options,
-            originalVideoUrl: video.videoUrl
+            originalVideoUrl: video.videoUrl,
+            flags: video.detectedFlags,
           });
         }}
         isGenerating={isRegenerating || false}

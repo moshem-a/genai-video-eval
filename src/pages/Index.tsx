@@ -38,6 +38,7 @@ const Index = () => {
     analyzeVideo,
     reset,
     updateFlag,
+    videoDuration,
   } = useVideoAnalysis();
 
   const { regeneration, regenerate, resetRegeneration } = useVideoRegeneration();
@@ -54,7 +55,7 @@ const Index = () => {
     file: new File([], result.videoName),
     name: result.videoName,
     videoUrl: result.videoUrl,
-    duration: result.videoDuration,
+    duration: videoDuration,
     groundTruth: [],
     detectedFlags: result.flags,
     agentResults: result.agents,
@@ -62,7 +63,7 @@ const Index = () => {
     unmatchedIssues: [],
     status: 'complete',
     passed: true,
-    originPrompt: result.originPrompt, // Pass it through
+    originPrompt: result.originPrompt,
   } : null;
 
   const handleFlagClick = useCallback((flag: Flag) => {
@@ -81,10 +82,11 @@ const Index = () => {
     includeAudio: boolean;
     strategy: 'creative' | 'similarity';
     originalVideoUrl?: string;
+    flags?: Flag[];
   }) => {
     if (!result) return;
-    regenerate(result.videoName, result.videoDuration, options);
-  }, [result, regenerate]);
+    regenerate(result.videoName, videoDuration, options);
+  }, [result, regenerate, videoDuration]);
 
   const handleReset = useCallback(() => {
     reset();
@@ -95,7 +97,6 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-background">
       <ApiKeyDialog open={showApiDialog} onOpenChange={setShowApiDialog} onSave={() => {}} />
-      {/* Header */}
       <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50">
         <div className="container flex items-center justify-between h-14 px-4">
           <div className="flex items-center gap-2">
@@ -274,7 +275,6 @@ const Index = () => {
                 </>
               )}
 
-              {/* Versioned Results — Active Status */}
               {(regeneration.status === 'generating' || regeneration.status === 'evaluating' || regeneration.status === 'error' || regeneration.status === 'complete') && (
                 <RegeneratedResults
                   regeneration={regeneration}
