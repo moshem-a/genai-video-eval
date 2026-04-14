@@ -8,7 +8,7 @@
 
 Foundation models generate pixels, not physics. Commercial video projects currently suffer from high "re-roll" costs due to semantic hallucinations—melting appendages, lighting flicker, and background morphing. 
 
-**Reality Check Engine** is a closed-loop system where specialized auditors (**Gemini 3.1 Pro**) critique the artist (**Veo 3.1**). It translates visual failures into quantitative prompt corrections, automating the QC loop and fixing errors in-flight.
+**GenAI Video Evaluator** is a closed-loop system where specialized auditors (**Gemini 3.1 Pro**) critique the artist (**Veo 3.1**). It translates visual failures into quantitative prompt corrections, automating the QC loop and fixing errors in-flight.
 
 ---
 
