@@ -101,7 +101,7 @@ export async function generateRegenerationPrompt(
   const apiKey = getStoredApiKey();
   if (!apiKey) {
     // Fallback static prompt
-    return buildStaticPrompt(videoName, flags, originPrompt);
+    return buildStaticPrompt(videoName, flags, originPrompt, hasReferenceImages);
   }
 
   try {
@@ -120,13 +120,16 @@ ${flags.map(f => `- [${f.category}] At ${f.timestamp} (${f.severity}): ${f.descr
 
 Generate a professional, highly detailed prompt for Google Veo 2 or Veo 3 that will fix the issues identified above.
 
-${hasReferenceImages 
-  ? `IMPORTANT: The model will be provided with keyframes from the start, middle, and end of the original video as visual assets. 
-Ensure the generated prompt strictly instructs the video model to:
-1. Maintain the EXACT camera angle, framing, and vantage point seen in the reference images (e.g., if it is a high-angle security camera or wide-angle shot, explicitly specify this).
-2. Keep the subject appearance, clothing, scene layout, and lighting identical to the references.
-3. Explicitly describe the lens/distortion if present (e.g., "wide angle security camera perspective").
-4. Focus only on fixing the motion and temporal quality issues while staying visually anchored to the source.`
+${hasReferenceImages
+  ? `CRITICAL — CONTINUITY MODE: The video model will receive a single starting frame extracted from the original video as its visual anchor. The generated video MUST look like it belongs to the same shot as the original.
+
+Your prompt MUST begin with a detailed visual description of the scene (subjects, environment, camera angle, lighting, colors, textures) so the model reproduces the same look. Then instruct the model to:
+1. Use the provided starting image as the first frame — the output video must visually match this frame exactly at t=0.
+2. Maintain the EXACT camera angle, framing, subject appearance, clothing, scene layout, lighting, and color palette throughout.
+3. Preserve visual continuity — the regenerated video should be indistinguishable from the original in terms of look and feel.
+4. ONLY fix the specific motion/temporal issues listed below while keeping everything else identical to the source.
+
+Do NOT introduce new visual elements, change the setting, or alter the subject's appearance in any way.`
   : ''}
 
 ${originPrompt 
@@ -145,14 +148,18 @@ Return ONLY the new prompt text, no conversational filler or explanation.`;
     return result.response.text();
   } catch (e) {
     console.error('Failed to generate regeneration prompt:', e);
-    return buildStaticPrompt(videoName, flags, originPrompt);
+    return buildStaticPrompt(videoName, flags, originPrompt, hasReferenceImages);
   }
 }
 
-function buildStaticPrompt(videoName: string, flags: Flag[], originPrompt?: string): string {
+function buildStaticPrompt(videoName: string, flags: Flag[], originPrompt?: string, hasReferenceImages: boolean = false): string {
   const issueDescriptions = flags.map(f => f.description);
 
-  return `${originPrompt ? `Based on: "${originPrompt}"\n\n` : ''}Attempting to fix "${videoName}" with these corrections:
+  const continuityPrefix = hasReferenceImages
+    ? `IMPORTANT: Use the provided starting image as the first frame. The regenerated video must visually match the original — same camera angle, same scene, same subjects, same lighting. Only fix the motion/temporal issues below.\n\n`
+    : '';
+
+  return `${continuityPrefix}${originPrompt ? `Based on: "${originPrompt}"\n\n` : ''}Attempting to fix "${videoName}" with these corrections:
 
 AVOID these issues:
 ${issueDescriptions.map(d => `- ${d}`).join('\n')}

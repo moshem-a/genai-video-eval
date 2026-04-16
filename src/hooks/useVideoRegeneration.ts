@@ -72,14 +72,29 @@ export function useVideoRegeneration() {
           try {
             const response = await fetch(originalVideoUrl);
             const blob = await response.blob();
-            const file = new File([blob], 'reference.mp4', { type: 'video/mp4' });
+            const file = new File([blob], 'reference.mp4', { type: blob.type || 'video/mp4' });
 
             const { frames } = await extractSpecificFrames(file, [bestTimestamp]);
             if (frames.length > 0) {
               startingImage = frames[0];
+              console.log(`[Continuity] Extracted starting frame at ${bestTimestamp.toFixed(1)}s (${(startingImage.length / 1024).toFixed(0)} KB base64)`);
+              setRegeneration(prev => ({
+                ...prev,
+                statusMessage: `Clean frame extracted at ${bestTimestamp.toFixed(1)}s — sending to Veo as starting image...`,
+              }));
+            } else {
+              console.warn('[Continuity] Frame extraction returned no frames, falling back to text-only');
+              setRegeneration(prev => ({
+                ...prev,
+                statusMessage: '⚠ Frame extraction failed — falling back to text-only generation...',
+              }));
             }
           } catch (err) {
-            console.warn('Failed to extract starting frame, falling back to text-only generation:', err);
+            console.warn('[Continuity] Failed to extract starting frame:', err);
+            setRegeneration(prev => ({
+              ...prev,
+              statusMessage: '⚠ Could not extract starting frame — falling back to text-only generation...',
+            }));
           }
         }
       }

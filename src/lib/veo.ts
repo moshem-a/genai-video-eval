@@ -49,8 +49,6 @@ export async function generateVideoWithVeo(options: VeoGenerateOptions): Promise
   // Veo API requires durationSeconds between 4 and 8 inclusive
   const durationSeconds = Math.max(4, Math.min(Math.round(rawDuration), 8));
 
-  onStatusUpdate?.('Submitting video generation request...');
-
   // Step 1: Submit the generation request
   const instance: any = {
     prompt,
@@ -72,6 +70,11 @@ export async function generateVideoWithVeo(options: VeoGenerateOptions): Promise
       bytesBase64Encoded: baseData,
       mimeType: mimeType
     };
+    console.log(`[Veo] Image-to-Video mode: sending ${mimeType} image (${(baseData.length / 1024).toFixed(0)} KB base64) with model ${model}`);
+    onStatusUpdate?.('Submitting image-to-video generation request...');
+  } else {
+    console.log(`[Veo] Text-to-Video mode (no starting image) with model ${model}`);
+    onStatusUpdate?.('Submitting text-to-video generation request...');
   }
 
   const payload = {
