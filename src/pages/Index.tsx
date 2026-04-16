@@ -280,6 +280,7 @@ const Index = () => {
                   regeneration={regeneration}
                   originalScore={result.coherenceScore}
                   originalFlagCount={result.flags.length}
+                  originalVideoUrl={result.videoUrl}
                 />
               )}
             </div>
