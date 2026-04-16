@@ -12,15 +12,6 @@ Foundation models generate pixels, not physics. Commercial video projects curren
 
 ---
 
-## 🏗️ System Architecture
-
-The engine implements a multi-agent "Forensic Audit" mesh that evaluates video frames against physical and temporal ground truths.
-<img width="2048" height="1089" alt="Google Cloud Platiorm" src="[https://github.com/user-attachments/assets/987bfade-0cd6-4a29-9fdc-fdbfa522f11e](https://miro.medium.com/v2/resize:fit:1400/format:webp/1*irBrfyJaMNqty132NPZTzA.png)" />
-
-
-
----
-
 ## ✨ Key Features
 
 - **Multi-Agent Forensic Audit**: Categorized evaluation (Physics, Lighting, Morphology) using Gemini 3.1 Pro.
