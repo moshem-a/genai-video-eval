@@ -47,7 +47,7 @@ export function PromptEditorDialog({
   useEffect(() => {
     if (open) {
       setPrompt(initialPrompt);
-      setDuration(Math.max(4, Math.min(initialDuration, 8)));
+      setDuration(typeof initialDuration === 'number' && !isNaN(initialDuration) ? Math.max(Math.min(initialDuration, 8), 4) : 5);
     }
   }, [open, initialPrompt, initialDuration]);
 
@@ -166,7 +166,13 @@ export function PromptEditorDialog({
               <Label className="flex items-center gap-1.5">
                 <Maximize className="h-3.5 w-3.5" /> Model
               </Label>
-              <Select value={model} onValueChange={(v) => setModel(v as VeoModelKey)}>
+              <Select value={model} onValueChange={(v) => {
+                const newModel = v as VeoModelKey;
+                setModel(newModel);
+                if (newModel === 'veo-3.1') {
+                  setIncludeAudio(false);
+                }
+              }}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -247,13 +253,16 @@ export function PromptEditorDialog({
                 <Music className="h-4 w-4 text-primary" />
                 <div className="space-y-0.5">
                   <Label htmlFor="audio" className="text-sm">Include Audio</Label>
-                  <p className="text-[10px] text-muted-foreground">Add AI soundtrack</p>
+                  <p className="text-[10px] text-muted-foreground">
+                    {model === 'veo-3.1' ? 'Not supported by Veo 3.1' : 'Add AI soundtrack'}
+                  </p>
                 </div>
               </div>
               <Switch
                 id="audio"
                 checked={includeAudio}
                 onCheckedChange={setIncludeAudio}
+                disabled={model === 'veo-3.1'}
               />
             </div>
           </div>

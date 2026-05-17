@@ -20,10 +20,22 @@ interface StoredApiKey {
   expiry: number;
 }
 
+export function sanitizeApiKey(key: string | null | undefined): string {
+  if (!key) return '';
+  // Remove non-ASCII, non-printable characters, spaces, non-breaking spaces (\u00A0), emojis, etc.
+  return key.replace(/[^\x21-\x7E]/g, '').trim();
+}
+
 export function getStoredApiKey(): string {
   try {
     const raw = sessionStorage.getItem(STORAGE_KEY_API);
-    if (!raw) return '';
+    if (!raw) {
+      const envKey = import.meta.env?.VITE_GEMINI_API_KEY;
+      if (envKey && envKey !== 'your-gemini-api-key-here') {
+        return sanitizeApiKey(envKey);
+      }
+      return '';
+    }
     
     const data = JSON.parse(raw) as StoredApiKey;
     if (Date.now() > data.expiry) {
@@ -31,15 +43,16 @@ export function getStoredApiKey(): string {
       return '';
     }
     
-    return data.key;
+    return sanitizeApiKey(data.key);
   } catch (e) {
     return '';
   }
 }
 
 export function setStoredApiKey(key: string) {
+  const cleanKey = sanitizeApiKey(key);
   const data: StoredApiKey = {
-    key,
+    key: cleanKey,
     expiry: Date.now() + API_EXPIRY_MS
   };
   sessionStorage.setItem(STORAGE_KEY_API, JSON.stringify(data));

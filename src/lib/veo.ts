@@ -77,16 +77,47 @@ export async function generateVideoWithVeo(options: VeoGenerateOptions): Promise
     onStatusUpdate?.('Submitting text-to-video generation request...');
   }
 
+    // Add reference images if provided
+    if (referenceImages && referenceImages.length > 0) {
+      // NOTE: referenceImages is only supported by Veo 3.1 (preview) on current Vertex AI.
+      // Including it for 3.0 or 2.0 causes 400 errors in some environments.
+      if (model === 'veo-3.1') {
+        instance.referenceImages = referenceImages.map(img => {
+          let mimeType = "image/jpeg";
+          let base64Data = img;
+
+          if (img.includes(',')) {
+            const parts = img.split(',');
+            const match = parts[0].match(/:(.*?);/);
+            if (match) mimeType = match[1];
+            base64Data = parts[1];
+          }
+
+          return {
+            image: {
+              bytesBase64Encoded: base64Data,
+              mimeType: mimeType
+            },
+            referenceType: "asset"
+          };
+        });
+      }
+    }
+
+  const finalDuration = typeof durationSeconds === 'number' && !isNaN(durationSeconds)
+    ? Math.max(Math.min(durationSeconds, 8), 4)
+    : 5;
   const payload = {
     instances: [instance],
     parameters: {
       aspectRatio,
-      durationSeconds,
+      durationSeconds: finalDuration,
       ...(includeAudio === true ? { includeAudio: true } : {}),
     },
   };
 
   const modelId = VEO_MODELS[model];
+  console.log('Veo API Payload:', JSON.stringify(payload, null, 2));
   const generateResponse = await fetch(
     `${BASE_URL}/models/${modelId}:predictLongRunning`,
     {
