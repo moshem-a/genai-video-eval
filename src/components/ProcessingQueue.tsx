@@ -46,9 +46,9 @@ export function ProcessingQueue({ agentResults, isAnalyzing, frameProgress }: Pr
       )}
 
       <div className="space-y-2">
-        {agentResults.map((agent) => (
+        {agentResults.map((agent, idx) => (
           <div
-            key={agent.agent}
+            key={`${agent.agent}-${idx}`}
             className={cn(
               'flex items-center gap-3 rounded-md px-3 py-2 text-sm',
               agent.status === 'running' && 'bg-primary/5',

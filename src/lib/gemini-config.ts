@@ -7,6 +7,7 @@ export const GEMINI_MODELS = [
   { id: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro', description: 'Top-tier reasoning' },
   { id: 'gemini-3-flash-preview', label: 'Gemini 3 Flash Preview', description: 'Next-gen fast' },
   { id: 'gemini-3.1-pro-preview', label: 'Gemini 3.1 Pro Preview', description: 'Latest & most capable' },
+  { id: 'gemini-3.5-flash', label: 'Gemini 3.5 Flash', description: 'Latest high-speed model' },
 ] as const;
 
 export type GeminiModelId = typeof GEMINI_MODELS[number]['id'];

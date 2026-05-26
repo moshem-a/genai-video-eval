@@ -18,6 +18,7 @@ interface VeoGenerateOptions {
   durationSeconds?: number;
   includeAudio?: boolean;
   inputImageBase64?: string; // Base64 encoded image for image-to-video
+  referenceImages?: string[]; // Reference images for continuity/style
   onStatusUpdate?: (status: string) => void;
 }
 
@@ -43,6 +44,7 @@ export async function generateVideoWithVeo(options: VeoGenerateOptions): Promise
     durationSeconds: rawDuration = 5,
     includeAudio = true,
     inputImageBase64,
+    referenceImages,
     onStatusUpdate,
   } = options;
 
